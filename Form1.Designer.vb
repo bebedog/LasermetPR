@@ -27,6 +27,8 @@ Partial Class Form1
         Me.btnSubmit = New System.Windows.Forms.Button()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.lblStatus = New System.Windows.Forms.Label()
+        Me.ProgressBar1 = New System.Windows.Forms.ProgressBar()
+        Me.btnNext = New System.Windows.Forms.Button()
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
         '
@@ -66,7 +68,7 @@ Partial Class Form1
         Me.DataGridView1.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
         Me.DataGridView1.Location = New System.Drawing.Point(260, 12)
         Me.DataGridView1.Name = "DataGridView1"
-        Me.DataGridView1.Size = New System.Drawing.Size(943, 611)
+        Me.DataGridView1.Size = New System.Drawing.Size(943, 579)
         Me.DataGridView1.TabIndex = 3
         '
         'lblStatus
@@ -79,11 +81,32 @@ Partial Class Form1
         Me.lblStatus.TabIndex = 5
         Me.lblStatus.Text = "Status: "
         '
+        'ProgressBar1
+        '
+        Me.ProgressBar1.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.ProgressBar1.Location = New System.Drawing.Point(1033, 626)
+        Me.ProgressBar1.Name = "ProgressBar1"
+        Me.ProgressBar1.Size = New System.Drawing.Size(170, 17)
+        Me.ProgressBar1.TabIndex = 6
+        '
+        'btnNext
+        '
+        Me.btnNext.Location = New System.Drawing.Point(1128, 597)
+        Me.btnNext.Name = "btnNext"
+        Me.btnNext.Size = New System.Drawing.Size(75, 23)
+        Me.btnNext.TabIndex = 7
+        Me.btnNext.Text = "Next Page"
+        Me.btnNext.UseVisualStyleBackColor = True
+        Me.btnNext.Visible = False
+        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(1215, 648)
+        Me.Controls.Add(Me.btnNext)
+        Me.Controls.Add(Me.ProgressBar1)
         Me.Controls.Add(Me.lblStatus)
         Me.Controls.Add(Me.DataGridView1)
         Me.Controls.Add(Me.btnSubmit)
@@ -102,4 +125,6 @@ Partial Class Form1
     Friend WithEvents btnSubmit As Button
     Friend WithEvents DataGridView1 As DataGridView
     Friend WithEvents lblStatus As Label
+    Friend WithEvents ProgressBar1 As ProgressBar
+    Friend WithEvents btnNext As Button
 End Class
