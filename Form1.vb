@@ -1,9 +1,9 @@
-﻿Imports HtmlAgilityPack
-Imports OpenQA.Selenium
+﻿Imports System.IO
 Imports OpenQA.Selenium.Chrome
+Imports OpenQA.Selenium
 Imports System.Net
-Imports System.IO
 Imports OpenQA.Selenium.Support.UI
+﻿Imports HtmlAgilityPack
 
 Public Class Form1
     Public itemToSearch As String = ""
@@ -245,7 +245,29 @@ Public Class Form1
 
     End Sub
 
-    'results': '//div[contains(@class, 'shopee-search-item-result__items')]'
-    ','body': '//div[contains(@class, \'article\')]'
+    Private Sub DataGridView1_CellContentClick_1(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellContentClick
 
+    End Sub
+
+    Private Sub Label1_Click(sender As Object, e As EventArgs) Handles Label1.Click
+
+    End Sub
+
+    Private Sub tbSearch_TextChanged(sender As Object, e As EventArgs) Handles tbSearch.TextChanged
+
+    End Sub
+
+    Private Sub btnSubmit_Click(sender As Object, e As EventArgs) Handles btnSubmit.Click
+
+    End Sub
+
+    Private Sub btnNext_Click_1(sender As Object, e As EventArgs) Handles btnNext.Click
+
+    End Sub
+
+    Private Sub lblStatus_Click(sender As Object, e As EventArgs) Handles lblStatus.Click
+
+    End Sub
 End Class
+
+
