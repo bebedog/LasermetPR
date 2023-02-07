@@ -16,6 +16,7 @@ Public Class OctoPart_API
     Public prTable As New DataTable
     Dim searchObj
     Dim csvSavepath As String
+    Dim selectedSource As String
 
     'Public Async Function sendAPIRequest(ByVal query As String) As Task(Of Object)
 
@@ -235,19 +236,7 @@ Public Class OctoPart_API
         cbSources.Items.Add("Shopee")
         cbSources.Items.Add("Octopart")
         groupFilters.Visible = False
-        statusLabel.Text = "Currently fetching data from authorized distributors... ノ( ゜-゜ノ)"
-        disableControls()
-        populateCategories()
-        prTable.Columns.Add("MPN", GetType(String))
-        prTable.Columns.Add("Short Description", GetType(String))
-        prTable.Columns.Add("Manufacturer", GetType(String))
-        prTable.Columns.Add("Distributor", GetType(String))
-        prTable.Columns.Add("Prices", GetType(String))
-        prTable.Columns.Add("Product Page", GetType(String))
-        prTable.Columns.Add("Quantity", GetType(Integer))
-        prTable.Columns.Add("Unit Price", GetType(String))
-        prTable.Columns.Add("Total Price", GetType(String))
-        buildPRdgv()
+        statusLabel.Text = "Please select a source"
     End Sub
 
     Private Async Sub populateCategories()
@@ -294,7 +283,7 @@ Public Class OctoPart_API
             categoriesList.Add(ctg.name.ToString)
         Next
 
-
+        tbKeyword.Enabled = True
         cbCategories.Items.AddRange(categoriesList.ToArray)
         cbCategories.SelectedIndex = 0
 
@@ -411,6 +400,10 @@ Public Class OctoPart_API
             searchObj = JsonConvert.DeserializeObject(Of NexarAPIResponse)(searchResultString)
             If searchObj.data.supSearch.hits = 0 Then
                 MessageBox.Show($"No part matches found for {tbKeyword.Text}")
+                If DialogResult.OK Then
+                    enableControls()
+                    Exit Function
+                End If
             End If
         End If
 
@@ -534,6 +527,10 @@ Public Class OctoPart_API
 
         If searchResults.Rows.Count = 0 Then
             MessageBox.Show($"No part matches found for {tbKeyword.Text}")
+            If DialogResult.OK Then
+                enableControls()
+                Exit Function
+            End If
         End If
 
         statusLabel.Enabled = True
@@ -597,9 +594,10 @@ Public Class OctoPart_API
     End Sub
 
     Private Async Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
-        If cbSources.SelectedItem = "Octopart" Then
+        selectedSource = cbSources.Text
+        If selectedSource = "Octopart" Then
             Await searchOcto(tbKeyword.Text, cbCategories.Text, cbSubcategories.Text)
-        ElseIf cbSources.SelectedItem = "Shopee" Then
+        ElseIf selectedSource = "Shopee" Then
             disableControls()
             Dim resultsDataTable = Await SearchShopee(tbKeyword.Text, dgvOctopartResults, ToolStripProgressBar1, statusLabel)
             dgvOctopartResults.DataSource = resultsDataTable
@@ -630,16 +628,15 @@ Public Class OctoPart_API
     End Sub
 
     Private Sub dgvOctopartResults_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvOctopartResults.CellContentClick
-
         Dim sendergrid = DirectCast(sender, DataGridView)
-        If tbKeyword.Text = "Octopart" Then
+        If selectedSource = "Octopart" Then
             If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
                 populateSellersTable(sendergrid.CurrentRow.Cells(0).Value.ToString(), sendergrid.CurrentRow.Cells(1).Value.ToString(), sendergrid.CurrentRow.Cells(2).Value.ToString(), searchObj, viewSellers.dgvSellers)
                 viewSellers.MPN = sendergrid.CurrentRow.Cells(0).Value.ToString()
                 viewSellers.shortDesc = sendergrid.CurrentRow.Cells(1).Value.ToString()
                 viewSellers.Manufacturer = sendergrid.CurrentRow.Cells(2).Value.ToString()
             End If
-        ElseIf tbKeyword.Text = "Shopee" Then
+        ElseIf selectedSource = "Octopart" Then
             MessageBox.Show("No")
         End If
     End Sub
@@ -776,52 +773,6 @@ Public Class OctoPart_API
 
         MessageBox.Show("Code under construction", "¯\( ◡ ‿ ◡)/¯")
     End Sub
-
-    Private Function dtTableToCSV(dt As DataTable, ByVal filename As String, Optional headers As Boolean = True, Optional delim As String = ",")
-        Try
-            Dim txt As String
-            Dim csvWriter As IO.StreamWriter = IO.File.AppendText(filename)
-            Dim fileloc As String = filename
-            Dim n = 0
-            If IO.File.Exists(filename) Then
-                txt += vbCrLf
-                txt += "PR generated on " + DateTime.Now().ToString("g")
-                txt += vbCrLf
-                If headers = True Then
-                    For Each column As DataColumn In dt.Columns
-                        If n = 0 Then
-                            txt += column.ColumnName.Replace(",", "--comma--")
-                        Else
-                            txt += delim + column.ColumnName.Replace(",", "--comma--")
-                        End If
-                        n += 1
-                    Next
-                End If
-                txt += vbCrLf
-                n = 0
-                For Each row As DataRow In dt.Rows
-                    Dim line As String = ""
-                    For Each column As DataColumn In dt.Columns
-                        line += delim & row(column.ColumnName).ToString().Replace(",", "--comma--")
-                    Next
-                    If dt.Rows.Count - 1 = n Then
-                        txt += line.Substring(1)
-                    Else
-                        txt += line.Substring(1) & vbCrLf
-                    End If
-                    n += 1
-                Next
-            End If
-
-            csvWriter.Write(txt)
-            csvWriter.Close()
-
-
-
-        Catch ex As Exception
-            MessageBox.Show("Please select a valid save directory", "Invalid save location.", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        End Try
-    End Function
 
     Private Sub btnExportPR_Click(sender As Object, e As EventArgs) Handles btnExportPR.Click
 
@@ -985,8 +936,24 @@ Public Class OctoPart_API
 
     Private Sub cbSources_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cbSources.SelectedIndexChanged
         If cbSources.SelectedItem = "Octopart" Then
+            prTable.Columns.Clear()
+            dgvBuildPR.Columns.Clear()
             groupFilters.Visible = True
             btnSearch.Location = New Point(72, 296)
+            statusLabel.Text = "Currently fetching data from authorized distributors... ノ( ゜-゜ノ)"
+            disableControls()
+            populateCategories()
+            enableControls()
+            prTable.Columns.Add("MPN", GetType(String))
+            prTable.Columns.Add("Short Description", GetType(String))
+            prTable.Columns.Add("Manufacturer", GetType(String))
+            prTable.Columns.Add("Distributor", GetType(String))
+            prTable.Columns.Add("Prices", GetType(String))
+            prTable.Columns.Add("Product Page", GetType(String))
+            prTable.Columns.Add("Quantity", GetType(Integer))
+            prTable.Columns.Add("Unit Price", GetType(String))
+            prTable.Columns.Add("Total Price", GetType(String))
+            buildPRdgv()
         ElseIf cbSources.SelectedItem = "Shopee" Then
             groupFilters.Visible = False
             btnSearch.Location = New Point(72, 144)
