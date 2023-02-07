@@ -618,27 +618,42 @@ Public Class OctoPart_API
 
     Private Sub btnExportPR_Click(sender As Object, e As EventArgs) Handles btnExportPR.Click
 
-        Dim prTableforCSV As New DataTable
+        Dim prTableforExcel As New DataTable
 
-        prTableforCSV.Columns.Add("MPN", GetType(String))
-        prTableforCSV.Columns.Add("Short Description", GetType(String))
-        prTableforCSV.Columns.Add("Manufacturer", GetType(String))
-        prTableforCSV.Columns.Add("Distributor", GetType(String))
-        prTableforCSV.Columns.Add("Product Page", GetType(String))
-        prTableforCSV.Columns.Add("Quantity", GetType(Integer))
-        prTableforCSV.Columns.Add("Unit Price", GetType(String))
-        prTableforCSV.Columns.Add("Total Price", GetType(String))
+        prTableforExcel.Columns.Add("MPN + Description", GetType(String))
+        prTableforExcel.Columns.Add("Manufacturer", GetType(String))
+        prTableforExcel.Columns.Add("Distributor", GetType(String))
+        prTableforExcel.Columns.Add("Product Page", GetType(String))
+        prTableforExcel.Columns.Add("Quantity", GetType(Integer))
+        prTableforExcel.Columns.Add("Unit Price", GetType(String))
+        prTableforExcel.Columns.Add("Total Price", GetType(String))
 
         For Each row As DataRow In prTable.Rows
-            prTableforCSV.Rows.Add(row.Item(0).ToString.Replace(",", "&&"), row.Item(1).ToString.Replace(",", "&&"), row.Item(2).ToString.Replace(",", "&&"), row.Item(3).ToString.Replace(",", "&&"), row.Item(5).ToString.Replace(",", "&&"), row.Item(6).ToString.Replace(",", "&&"), row.Item(7).ToString.Replace(",", "&&"), row.Item(8).ToString.Replace(",", "&&"))
+            Dim mpnDesc As New List(Of String)
+            mpnDesc.Add(row.Item(0).ToString)
+            mpnDesc.Add(row.Item(1).ToString)
+            Dim mpnDesc37 As IEnumerable(Of String) = SplitInParts(String.Join(" | ", mpnDesc.ToArray), 37)
+            'For i As Integer = 0 To String.Join(" | ", mpnDesc.ToArray).Length - 1 Step 37
+            '    mpnDesc37.Add(String.Join(" | ", mpnDesc.ToArray).Substring(i, 37))
+            'Next
+
+            If mpnDesc37.Count = 1 Then
+                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(5).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString)
+            Else
+                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(5).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString)
+                For i As Integer = 1 To mpnDesc37.Count - 1
+                    prTableforExcel.Rows.Add(mpnDesc37(i), Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
+                Next
+            End If
+
         Next
 
         dlgSaveFile.Filter = "Excel (*.xlsx)|*.xlsx"
         dlgSaveFile.FilterIndex = 2
         dlgSaveFile.RestoreDirectory = True
         If dlgSaveFile.ShowDialog() = DialogResult.OK Then
-            'dtTableToCSV(prTableforCSV, dlgSaveFile.FileName)
-            addtoExcel(prTableforCSV, dlgSaveFile.FileName)
+            'dtTableToCSV(prTableforExcel, dlgSaveFile.FileName)
+            addtoExcel(prTableforExcel, dlgSaveFile.FileName)
         End If
 
         'If csvSavepath <> "" Or csvSavepath IsNot Nothing Or csvSavepath.Length >= 3 Then
@@ -648,6 +663,16 @@ Public Class OctoPart_API
         '    MessageBox.Show("Please select a folder to save your file in.", "No folder selected", MessageBoxButtons.OK)
         'End If
     End Sub
+
+    Public Function SplitInParts(s As String, partLength As Integer) As IEnumerable(Of String)
+        If String.IsNullOrEmpty(s) Then
+            Throw New ArgumentNullException("String cannot be null or empty.")
+        End If
+        If partLength <= 0 Then
+            Throw New ArgumentException("Split length has to be positive.")
+        End If
+        Return Enumerable.Range(0, Math.Ceiling(s.Length / partLength)).Select(Function(i) s.Substring(i * partLength, If(s.Length - (i * partLength) >= partLength, partLength, Math.Abs(s.Length - (i * partLength)))))
+    End Function
 
     Private Sub dgvBuildPR_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvBuildPR.CellContentClick
         Dim sendergrid = DirectCast(sender, DataGridView)
@@ -735,6 +760,7 @@ Public Class OctoPart_API
             Exit Sub
         End Try
 
+        MessageBox.Show($"File: [{filename}] succesfully saved.")
 
     End Sub
 
