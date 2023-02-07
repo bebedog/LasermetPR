@@ -27,7 +27,7 @@ Partial Class Form1
         Me.Label1 = New System.Windows.Forms.Label()
         Me.DataGridView1 = New System.Windows.Forms.DataGridView()
         Me.tbSearch = New System.Windows.Forms.TextBox()
-        Me.btnSearch = New System.Windows.Forms.Button()
+        Me.btnSubmit = New System.Windows.Forms.Button()
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
         '
@@ -78,15 +78,15 @@ Partial Class Form1
         Me.tbSearch.Size = New System.Drawing.Size(226, 26)
         Me.tbSearch.TabIndex = 7
         '
-        'btnSearch
+        'btnSubmit
         '
-        Me.btnSearch.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.btnSearch.Location = New System.Drawing.Point(152, 68)
-        Me.btnSearch.Name = "btnSearch"
-        Me.btnSearch.Size = New System.Drawing.Size(86, 33)
-        Me.btnSearch.TabIndex = 6
-        Me.btnSearch.Text = "Search"
-        Me.btnSearch.UseVisualStyleBackColor = True
+        Me.btnSubmit.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.btnSubmit.Location = New System.Drawing.Point(152, 68)
+        Me.btnSubmit.Name = "btnSubmit"
+        Me.btnSubmit.Size = New System.Drawing.Size(86, 33)
+        Me.btnSubmit.TabIndex = 6
+        Me.btnSubmit.Text = "Search"
+        Me.btnSubmit.UseVisualStyleBackColor = True
         '
         'Form1
         '
@@ -98,7 +98,7 @@ Partial Class Form1
         Me.Controls.Add(Me.Label1)
         Me.Controls.Add(Me.DataGridView1)
         Me.Controls.Add(Me.tbSearch)
-        Me.Controls.Add(Me.btnSearch)
+        Me.Controls.Add(Me.btnSubmit)
         Me.Name = "Form1"
         Me.Text = "Form1"
         CType(Me.DataGridView1, System.ComponentModel.ISupportInitialize).EndInit()
@@ -112,5 +112,5 @@ Partial Class Form1
     Friend WithEvents Label1 As Label
     Friend WithEvents DataGridView1 As DataGridView
     Friend WithEvents tbSearch As TextBox
-    Friend WithEvents btnSearch As Button
+    Friend WithEvents btnSubmit As Button
 End Class
