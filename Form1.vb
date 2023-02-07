@@ -229,7 +229,7 @@ Public Class Form1
         Return resultsTable
     End Function
 
-    Private Sub DataGridView1_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles DataGridView1.CellContentClick
+    Private Sub DataGridView1_CellContentClick(sender As Object, e As DataGridViewCellEventArgs)
         Dim senderGrid = DirectCast(sender, DataGridView)
         If TypeOf senderGrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn AndAlso e.RowIndex >= 0 Then
             If e.ColumnIndex = DataGridView1.Columns("btnLink").Index Then
@@ -241,7 +241,7 @@ Public Class Form1
         End If
     End Sub
 
-    Private Async Sub btnNext_Click(sender As Object, e As EventArgs) Handles btnNext.Click
+    Private Async Sub btnNext_Click(sender As Object, e As EventArgs)
 
     End Sub
 
@@ -249,11 +249,11 @@ Public Class Form1
 
     End Sub
 
-    Private Sub Label1_Click(sender As Object, e As EventArgs) Handles Label1.Click
+    Private Sub Label1_Click(sender As Object, e As EventArgs)
 
     End Sub
 
-    Private Sub tbSearch_TextChanged(sender As Object, e As EventArgs) Handles tbSearch.TextChanged
+    Private Sub tbSearch_TextChanged(sender As Object, e As EventArgs)
 
     End Sub
 
@@ -265,7 +265,7 @@ Public Class Form1
 
     End Sub
 
-    Private Sub lblStatus_Click(sender As Object, e As EventArgs) Handles lblStatus.Click
+    Private Sub lblStatus_Click(sender As Object, e As EventArgs)
 
     End Sub
 End Class
