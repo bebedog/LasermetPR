@@ -4,6 +4,11 @@ Imports System.Net
 Imports System.Linq
 Imports Microsoft.VisualBasic.FileIO
 Imports Microsoft.Office.Interop
+Imports System.IO
+Imports OpenQA.Selenium.Chrome
+Imports OpenQA.Selenium
+Imports OpenQA.Selenium.Support.UI
+Imports HtmlAgilityPack
 
 Public Class OctoPart_API
 
@@ -46,9 +51,177 @@ Public Class OctoPart_API
 
     'End Function
 
+    Private Async Function SearchShopee(ByVal itemToSearch As String, ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel) As Task(Of DataTable)
+
+        datagridviewName.Columns.Clear()
+        progressBar.Value = 0
+        progressBar.Visible = True
+        progressBar.Alignment = ToolStripItemAlignment.Right
+        Dim resultsTable As New DataTable
+        resultsTable.Columns.Add("Item Name")
+        resultsTable.Columns.Add("Image", GetType(Image))
+        resultsTable.Columns.Add("Location")
+        resultsTable.Columns.Add("Product Page")
+        resultsTable.Columns.Add("Prices")
+        resultsTable.Columns.Add("Image URL")
+        Dim encodedItemString As String = ""
+        For Each character In itemToSearch
+            If character = " " Then
+                encodedItemString += "%20"
+            Else
+                encodedItemString += character
+            End If
+        Next
+        Dim html As String
+        'Use Selenium to browse using chrome.
+        'set options to make chrome headless.
+        Dim options As New ChromeOptions()
+        Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript", "headless"}
+        options.AddArguments(optionParamaters)
+
+        'declare a chromedriver service
+        Dim service = ChromeDriverService.CreateDefaultService()
+        service.HideCommandPromptWindow = True
+        'attach the option to the new driver manager.
+        Dim driver As ChromeDriver = New ChromeDriver(service, options)
+        'driver.Manage().Window.Maximize()
+        While True
+            'Go to the search result url
+            Try
+                lblstatus.Text = "Waiting for a response from Shopee.."
+                driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={encodedItemString}")
+                'set driver to wait for 10 seconds for the page to load.
+                Dim wait As WebDriverWait = New WebDriverWait(driver, TimeSpan.FromSeconds(10))
+                wait.IgnoreExceptionTypes(GetType(NoSuchElementException))
+                'wait.Until(Function(webDriver)
+                '               Return webDriver.FindElement(By.ClassName("shopee-search-item-result__items"))
+                '           End Function)
+                wait.Until(Function(webDriver)
+                               Try
+                                   driver.FindElement(By.ClassName("shopee-search-item-result__items"))
+                               Catch ex As Exception
+                                   Dim exType As Type = ex.GetType()
+                                   If exType = GetType(NoSuchElementException) Or exType = GetType(InvalidOperationException) Then
+                                       Return False
+                                       'by returning false, wait will still rerun the function.
+                                   Else
+                                       Throw
+                                   End If
+                               End Try
+                               Return True
+                           End Function)
+                lblstatus.Text = "Shopee items found!"
+                Exit While
+            Catch ex As Exception
+                Dim dlgrslt = MessageBox.Show($"Exception occured when loading webpage.{Environment.NewLine}{ex.Message}", "Oops, something went wrong!", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
+                If dlgrslt = DialogResult.Retry Then
+                    driver.Close()
+                Else
+                    driver.Close()
+                    Application.Restart()
+                End If
+            End Try
+        End While
+
+        'Scroll up to the bottom of the page to load all items.
+        lblstatus.Text = "Enabling scripts from shopee.."
+        While True
+            Dim currentYPosition = driver.ExecuteScript("return window.pageYOffset;")
+            'Scroll by a bit.
+            driver.ExecuteScript("window.scrollTo(0, window.scrollY + 500)")
+
+            'Wait for stuff to load.
+            Await Task.Delay(200)
+
+            'Calculate new scroll height and compare it with last height.
+            Dim newHeight = driver.ExecuteScript("return window.pageYOffset;")
+            If newHeight = currentYPosition Then 'This means the browser reached the max height.
+                Console.WriteLine("Reached bottom of the page.")
+                lblstatus.Text = "Data rendered from Shopee."
+                Exit While
+            End If
+        End While
+        'set the pagesource to the html string variable.
+        lblstatus.Text = "Parsing results.."
+        html = driver.PageSource
+        driver.Close()
+
+        'Load it as an HTML Document.
+        Try
+            Dim htmlDocument As New HtmlDocument
+            htmlDocument.LoadHtml(html)
+
+            'Make a single node out of a body.
+            Dim htmlBody = htmlDocument.DocumentNode.SelectSingleNode("//body")
+
+            'find out the number of page in result
+
+            'Select the search result node.
+            Dim searchResultsNode As HtmlNode = htmlBody.SelectSingleNode(".//div[(@class='row shopee-search-item-result__items')]")
+            'Save the search result in an HTMLNodeCollection.
+            progressBar.Maximum = searchResultsNode.ChildNodes.Count
+            For Each items As HtmlNode In searchResultsNode.SelectNodes(".//div[(@class='col-xs-2-4 shopee-search-item-result__item')]")
+                progressBar.Increment(1)
+                lblstatus.Text = $"Parsing results.. ({progressBar.Value}/{progressBar.Maximum})"
+                Dim itemName As String = items.SelectSingleNode(".//div[(@class='ie3A+n bM+7UW Cve6sh')]").InnerText
+                'Dim price As String = items.SelectSingleNode(".//div[(@class='ZEgDH9')]").InnerText
+                Dim location As String = items.SelectSingleNode(".//div[(@class='zGGwiV')]").InnerText
+                Dim url As String = items.SelectSingleNode(".//a[(@data-sqe='link')]").Attributes("href").Value
+                Dim imageUrl As String = items.SelectSingleNode(".//img[(@class='_7DTxhh vc8g9F')]").Attributes("src").Value
+                Dim tClient As New WebClient
+                Dim tImage = New Bitmap(Bitmap.FromStream(New MemoryStream(tClient.DownloadData(imageUrl))), 120, 120)
+                Dim price As String = ""
+                'Price varies, sometimes shopee displays the original price, or sometimes it displays a price range
+                'And sometimes it also displays the old price, and the new price beside it. So we'll capture the NODE
+                'of the whole price section instead and count the number of children inside it.
+                Dim priceNode As HtmlNode = items.SelectSingleNode(".//div[(@class='hpDKMN')]")
+                'this is either a Price Range or a Single Price
+                Dim currentPriceClass As HtmlNode = priceNode.SelectSingleNode(".//div[(@class='vioxXd rVLWG6')]")
+                For Each span As HtmlNode In currentPriceClass.ChildNodes
+                    If span.Name = "span" Then
+                        price += span.InnerText
+                    Else
+                        price += " - "
+                    End If
+                Next
+                Dim newRow = resultsTable.NewRow()
+                newRow.Item("Item Name") = itemName
+                newRow.Item("Image") = tImage
+                newRow.Item("Location") = location
+                newRow.Item("Product Page") = "https://www.shopee.ph" + url
+                newRow.Item("Prices") = price
+                'newRow.Item("Image URL") = imageUrl
+
+                resultsTable.Rows.Add(newRow)
+                'resultsTable.Columns.Add("Item Name")
+                'resultsTable.Columns.Add("Location")
+                'resultsTable.Columns.Add("Product Page")
+                'resultsTable.Columns.Add("Prices")
+                'resultsTable.Columns.Add("Image URL")
+            Next
+            progressBar.Value = progressBar.Maximum
+            progressBar.Visible = False
+            lblstatus.Text = "Fetch complete!"
+        Catch ex As Exception
+            Dim result = MessageBox.Show($"Error occured when parsing results.{Environment.NewLine}{ex.Message}", "Oops, something went wrong!", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
+            If result = DialogResult.Retry Then
+                Application.Restart()
+            Else
+                Me.Close()
+            End If
+        End Try
+
+        Return resultsTable
+    End Function
+
     Private Sub disableControls()
         For Each c As Control In Me.Controls
-            c.Enabled = False
+            If c.Name <> cbSources.Name Then
+                If c.Name <> labelSource.Name Then
+                    c.Enabled = False
+                End If
+            End If
+
         Next
     End Sub
 
@@ -59,6 +232,9 @@ Public Class OctoPart_API
     End Sub
 
     Private Sub OctoPart_API_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        cbSources.Items.Add("Shopee")
+        cbSources.Items.Add("Octopart")
+        groupFilters.Visible = False
         statusLabel.Text = "Currently fetching data from authorized distributors... ノ( ゜-゜ノ)"
         disableControls()
         populateCategories()
@@ -420,21 +596,52 @@ Public Class OctoPart_API
         populateSubcategories(cbCategories.Text)
     End Sub
 
-    Private Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
-        searchOcto(tbKeyword.Text, cbCategories.Text, cbSubcategories.Text)
+    Private Async Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
+        If cbSources.SelectedItem = "Octopart" Then
+            Await searchOcto(tbKeyword.Text, cbCategories.Text, cbSubcategories.Text)
+        ElseIf cbSources.SelectedItem = "Shopee" Then
+            disableControls()
+            Dim resultsDataTable = Await SearchShopee(tbKeyword.Text, dgvOctopartResults, ToolStripProgressBar1, statusLabel)
+            dgvOctopartResults.DataSource = resultsDataTable
+            dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+            dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+            dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+            Dim btn As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btn)
+            btn.HeaderText = "Item Links"
+            btn.Text = "View on browser"
+            btn.Name = "btnLink"
+            btn.UseColumnTextForButtonValue = True
+
+            Dim btnAddtoPR As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btnAddtoPR)
+            btnAddtoPR.HeaderText = "Add to PR"
+            btnAddtoPR.Text = "Add to Purchase Request"
+            btnAddtoPR.Name = "btnAddToPR"
+            btnAddtoPR.UseColumnTextForButtonValue = True
+            'hide product page
+            dgvOctopartResults.Columns("Product Page").Visible = False
+            dgvOctopartResults.Columns("Image URL").Visible = False
+            dgvOctopartResults.AllowUserToAddRows = False
+            enableControls()
+        Else
+            MessageBox.Show("Please select a source!!!!!")
+        End If
     End Sub
 
     Private Sub dgvOctopartResults_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvOctopartResults.CellContentClick
 
         Dim sendergrid = DirectCast(sender, DataGridView)
-
-        If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
-            populateSellersTable(sendergrid.CurrentRow.Cells(0).Value.ToString(), sendergrid.CurrentRow.Cells(1).Value.ToString(), sendergrid.CurrentRow.Cells(2).Value.ToString(), searchObj, viewSellers.dgvSellers)
-            viewSellers.MPN = sendergrid.CurrentRow.Cells(0).Value.ToString()
-            viewSellers.shortDesc = sendergrid.CurrentRow.Cells(1).Value.ToString()
-            viewSellers.Manufacturer = sendergrid.CurrentRow.Cells(2).Value.ToString()
+        If tbKeyword.Text = "Octopart" Then
+            If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
+                populateSellersTable(sendergrid.CurrentRow.Cells(0).Value.ToString(), sendergrid.CurrentRow.Cells(1).Value.ToString(), sendergrid.CurrentRow.Cells(2).Value.ToString(), searchObj, viewSellers.dgvSellers)
+                viewSellers.MPN = sendergrid.CurrentRow.Cells(0).Value.ToString()
+                viewSellers.shortDesc = sendergrid.CurrentRow.Cells(1).Value.ToString()
+                viewSellers.Manufacturer = sendergrid.CurrentRow.Cells(2).Value.ToString()
+            End If
+        ElseIf tbKeyword.Text = "Shopee" Then
+            MessageBox.Show("No")
         End If
-
     End Sub
 
     Private Sub populateSellersTable(ByVal MPN As String, ByVal shortDesc As String, ByVal manufacturer As String, ByVal results As NexarAPIResponse, ByVal dgv As DataGridView)
@@ -728,7 +935,7 @@ Public Class OctoPart_API
             Next
 
             xlNewSheet = xlWorkBook.Sheets("PR Form (2)")
-            xlNewSheet.Select()
+            'xlNewSheet.Select()
             xlWorkBook.SaveAs(filename)
             xlWorkBook.Close()
             releaseObject(xlNewSheet)
@@ -743,6 +950,7 @@ Public Class OctoPart_API
             ws.Select()
             ws.Range("A1:Z100").Select()
             ws.Range("A1:Z100").ClearContents()
+            xlWorkBook.Sheets("PR Form (2)").Select()
             For k = 0 To dt.Columns.Count - 1
                 ws.Cells(1, k + 1) = dt.Columns.Item(k).ToString
             Next
@@ -775,4 +983,13 @@ Public Class OctoPart_API
         End Try
     End Sub
 
+    Private Sub cbSources_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cbSources.SelectedIndexChanged
+        If cbSources.SelectedItem = "Octopart" Then
+            groupFilters.Visible = True
+            btnSearch.Location = New Point(72, 296)
+        ElseIf cbSources.SelectedItem = "Shopee" Then
+            groupFilters.Visible = False
+            btnSearch.Location = New Point(72, 144)
+        End If
+    End Sub
 End Class

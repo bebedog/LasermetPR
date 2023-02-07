@@ -39,6 +39,9 @@ Partial Class OctoPart_API
         Me.btnGetTotal = New System.Windows.Forms.Button()
         Me.btnExportPR = New System.Windows.Forms.Button()
         Me.dlgSaveFile = New System.Windows.Forms.SaveFileDialog()
+        Me.cbSources = New System.Windows.Forms.ComboBox()
+        Me.labelSource = New System.Windows.Forms.Label()
+        Me.ToolStripProgressBar1 = New System.Windows.Forms.ToolStripProgressBar()
         CType(Me.dgvOctopartResults, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.dgvBuildPR, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.groupFilters.SuspendLayout()
@@ -56,11 +59,11 @@ Partial Class OctoPart_API
         Me.dgvOctopartResults.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill
         Me.dgvOctopartResults.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells
         Me.dgvOctopartResults.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
-        Me.dgvOctopartResults.Location = New System.Drawing.Point(272, 40)
+        Me.dgvOctopartResults.Location = New System.Drawing.Point(280, 40)
         Me.dgvOctopartResults.Name = "dgvOctopartResults"
         Me.dgvOctopartResults.ReadOnly = True
         Me.dgvOctopartResults.RowHeadersWidthSizeMode = System.Windows.Forms.DataGridViewRowHeadersWidthSizeMode.DisableResizing
-        Me.dgvOctopartResults.Size = New System.Drawing.Size(760, 380)
+        Me.dgvOctopartResults.Size = New System.Drawing.Size(756, 380)
         Me.dgvOctopartResults.TabIndex = 0
         '
         'dgvBuildPR
@@ -72,9 +75,9 @@ Partial Class OctoPart_API
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.dgvBuildPR.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells
         Me.dgvBuildPR.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
-        Me.dgvBuildPR.Location = New System.Drawing.Point(272, 448)
+        Me.dgvBuildPR.Location = New System.Drawing.Point(280, 448)
         Me.dgvBuildPR.Name = "dgvBuildPR"
-        Me.dgvBuildPR.Size = New System.Drawing.Size(760, 241)
+        Me.dgvBuildPR.Size = New System.Drawing.Size(756, 241)
         Me.dgvBuildPR.TabIndex = 1
         '
         'labelOctopartResults
@@ -101,7 +104,7 @@ Partial Class OctoPart_API
         '
         Me.labelKeyword.AutoSize = True
         Me.labelKeyword.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelKeyword.Location = New System.Drawing.Point(16, 16)
+        Me.labelKeyword.Location = New System.Drawing.Point(16, 80)
         Me.labelKeyword.Name = "labelKeyword"
         Me.labelKeyword.Size = New System.Drawing.Size(67, 16)
         Me.labelKeyword.TabIndex = 6
@@ -110,7 +113,7 @@ Partial Class OctoPart_API
         'tbKeyword
         '
         Me.tbKeyword.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.tbKeyword.Location = New System.Drawing.Point(16, 40)
+        Me.tbKeyword.Location = New System.Drawing.Point(16, 104)
         Me.tbKeyword.Name = "tbKeyword"
         Me.tbKeyword.Size = New System.Drawing.Size(232, 22)
         Me.tbKeyword.TabIndex = 7
@@ -164,7 +167,7 @@ Partial Class OctoPart_API
         Me.groupFilters.Controls.Add(Me.cbSubcategories)
         Me.groupFilters.Controls.Add(Me.cbCategories)
         Me.groupFilters.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.groupFilters.Location = New System.Drawing.Point(8, 72)
+        Me.groupFilters.Location = New System.Drawing.Point(8, 136)
         Me.groupFilters.Name = "groupFilters"
         Me.groupFilters.Size = New System.Drawing.Size(264, 144)
         Me.groupFilters.TabIndex = 10
@@ -174,7 +177,7 @@ Partial Class OctoPart_API
         'btnSearch
         '
         Me.btnSearch.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.btnSearch.Location = New System.Drawing.Point(72, 232)
+        Me.btnSearch.Location = New System.Drawing.Point(72, 144)
         Me.btnSearch.Name = "btnSearch"
         Me.btnSearch.Size = New System.Drawing.Size(128, 56)
         Me.btnSearch.TabIndex = 18
@@ -183,10 +186,10 @@ Partial Class OctoPart_API
         '
         'StatusStrip1
         '
-        Me.StatusStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.statusLabel})
+        Me.StatusStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.statusLabel, Me.ToolStripProgressBar1})
         Me.StatusStrip1.Location = New System.Drawing.Point(0, 729)
         Me.StatusStrip1.Name = "StatusStrip1"
-        Me.StatusStrip1.Size = New System.Drawing.Size(1050, 22)
+        Me.StatusStrip1.Size = New System.Drawing.Size(1054, 22)
         Me.StatusStrip1.TabIndex = 19
         Me.StatusStrip1.Text = "StatusStrip1"
         '
@@ -211,18 +214,49 @@ Partial Class OctoPart_API
         '
         Me.btnExportPR.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btnExportPR.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.btnExportPR.Location = New System.Drawing.Point(656, 694)
+        Me.btnExportPR.Location = New System.Drawing.Point(660, 694)
         Me.btnExportPR.Name = "btnExportPR"
         Me.btnExportPR.Size = New System.Drawing.Size(336, 32)
         Me.btnExportPR.TabIndex = 21
         Me.btnExportPR.Text = "Export PR"
         Me.btnExportPR.UseVisualStyleBackColor = True
         '
+        'cbSources
+        '
+        Me.cbSources.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Append
+        Me.cbSources.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.ListItems
+        Me.cbSources.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.cbSources.FormattingEnabled = True
+        Me.cbSources.Location = New System.Drawing.Point(16, 48)
+        Me.cbSources.Name = "cbSources"
+        Me.cbSources.Size = New System.Drawing.Size(232, 24)
+        Me.cbSources.TabIndex = 22
+        '
+        'labelSource
+        '
+        Me.labelSource.AutoSize = True
+        Me.labelSource.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.labelSource.Location = New System.Drawing.Point(16, 24)
+        Me.labelSource.Name = "labelSource"
+        Me.labelSource.Size = New System.Drawing.Size(57, 16)
+        Me.labelSource.TabIndex = 23
+        Me.labelSource.Text = "Source"
+        '
+        'ToolStripProgressBar1
+        '
+        Me.ToolStripProgressBar1.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right
+        Me.ToolStripProgressBar1.Name = "ToolStripProgressBar1"
+        Me.ToolStripProgressBar1.RightToLeft = System.Windows.Forms.RightToLeft.Yes
+        Me.ToolStripProgressBar1.Size = New System.Drawing.Size(100, 16)
+        Me.ToolStripProgressBar1.Visible = False
+        '
         'OctoPart_API
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(1050, 751)
+        Me.ClientSize = New System.Drawing.Size(1054, 751)
+        Me.Controls.Add(Me.labelSource)
+        Me.Controls.Add(Me.cbSources)
         Me.Controls.Add(Me.btnExportPR)
         Me.Controls.Add(Me.btnGetTotal)
         Me.Controls.Add(Me.StatusStrip1)
@@ -264,4 +298,7 @@ Partial Class OctoPart_API
     Friend WithEvents btnGetTotal As Button
     Friend WithEvents btnExportPR As Button
     Friend WithEvents dlgSaveFile As SaveFileDialog
+    Friend WithEvents ToolStripProgressBar1 As ToolStripProgressBar
+    Friend WithEvents cbSources As ComboBox
+    Friend WithEvents labelSource As Label
 End Class
