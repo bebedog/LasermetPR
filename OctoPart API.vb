@@ -735,6 +735,7 @@ Public Class OctoPart_API
             releaseObject(worksheets)
             releaseObject(xlWorkBook)
             releaseObject(xlApp)
+            MessageBox.Show($"File: [{filename}] succesfully saved.")
         Catch ex As Exception
             Dim sheet1 As Excel.Worksheet = CType(xlWorkBook.Sheets("Sheet1"), Excel.Worksheet)
             sheet1.Delete()
@@ -757,10 +758,9 @@ Public Class OctoPart_API
             releaseObject(worksheets)
             releaseObject(xlWorkBook)
             releaseObject(xlApp)
+            MessageBox.Show($"File: [{filename}] succesfully saved.")
             Exit Sub
         End Try
-
-        MessageBox.Show($"File: [{filename}] succesfully saved.")
 
     End Sub
 
