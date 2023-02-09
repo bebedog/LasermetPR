@@ -233,9 +233,12 @@ Public Class OctoPart_API
     End Sub
 
     Private Sub OctoPart_API_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Console.WriteLine(Application.StartupPath)
         cbSources.Items.Add("Shopee")
         cbSources.Items.Add("Octopart")
         groupFilters.Visible = False
+        groupFilters.Enabled = False
+        btnSearch.Enabled = False
         statusLabel.Text = "Please select a source"
     End Sub
 
@@ -286,10 +289,8 @@ Public Class OctoPart_API
         tbKeyword.Enabled = True
         cbCategories.Items.AddRange(categoriesList.ToArray)
         cbCategories.SelectedIndex = 0
-
         groupFilters.Enabled = True
-        cbCategories.Enabled = True
-        labelCategories.Enabled = True
+        btnSearch.Enabled = True
 
         StatusStrip1.Enabled = True
         statusLabel.Text = "You can start searching by Category or a specific keyword ノ( ゜-゜ノ)"
@@ -341,6 +342,7 @@ Public Class OctoPart_API
                                 inStockOnly: true
                                 country:""PH""
                                 currency: ""PHP""
+                                limit: 1
                               ) {
                                 hits
                                 results {
@@ -522,7 +524,6 @@ Public Class OctoPart_API
         Me.Text = $"{searchResults.Rows.Count} parts found"
 
         enableControls()
-        btnGetTotal.Enabled = False
         btnExportPR.Enabled = False
 
         If searchResults.Rows.Count = 0 Then
@@ -538,23 +539,20 @@ Public Class OctoPart_API
     End Function
     Private Sub buildPRdgv()
 
-        dgvBuildPR.ReadOnly = False
-
-        For Each col As DataGridViewColumn In dgvBuildPR.Columns
-            If col.Name <> "Quantity" Then
-                col.ReadOnly = True
-            End If
-        Next
-
         dgvBuildPR.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
 
-        Dim updateBtn As New DataGridViewButtonColumn
-        updateBtn.HeaderText = "Remove Item"
-        updateBtn.Text = "Remove Item"
-        updateBtn.UseColumnTextForButtonValue = True
-        dgvBuildPR.DataSource = prTable
+        Dim deleteBtn As New DataGridViewButtonColumn
+        deleteBtn.HeaderText = "Remove Item"
+        deleteBtn.Text = "Remove Item"
+        deleteBtn.UseColumnTextForButtonValue = True
 
-        dgvBuildPR.Columns.Add(updateBtn)
+        Dim updateBtn As New DataGridViewButtonColumn
+        updateBtn.HeaderText = "Update Item"
+        updateBtn.Text = "Update Item"
+        updateBtn.UseColumnTextForButtonValue = True
+
+        dgvBuildPR.DataSource = prTable
+        dgvBuildPR.Columns.Add(deleteBtn)
         dgvBuildPR.DefaultCellStyle.WrapMode = DataGridViewTriState.True
 
     End Sub
@@ -586,6 +584,7 @@ Public Class OctoPart_API
             tbKeyword.Enabled = True
             btnSearch.Enabled = True
         End If
+        groupFilters.Enabled = True
 
     End Function
 
@@ -758,22 +757,6 @@ Public Class OctoPart_API
 
     End Sub
 
-    Private Sub btnGetTotal_Click(sender As Object, e As EventArgs) Handles btnGetTotal.Click
-        'Dim totals As New List(Of Double)
-
-        'For i As Integer = 0 To prTable.Rows.Count
-        '    If IsNumeric(prTable.Rows(i).Item(8).ToString.Split(" ")(1)) Then
-        '        Dim total As Double = prTable.Rows(i).Item(8).ToString.Split(" ")(1)
-        '        totals.Add(total)
-        '    End If
-
-        'Next
-
-        'prTable.Rows.Add(Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, $"PHP {totals.Sum}")
-
-        MessageBox.Show("Code under construction", "¯\( ◡ ‿ ◡)/¯")
-    End Sub
-
     Private Sub btnExportPR_Click(sender As Object, e As EventArgs) Handles btnExportPR.Click
 
         Dim prTableforExcel As New DataTable
@@ -796,9 +779,9 @@ Public Class OctoPart_API
             'Next
 
             If mpnDesc37.Count = 1 Then
-                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(5).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString)
+                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString, row.Item(9).ToString)
             Else
-                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(5).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString)
+                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString, row.Item(9).ToString)
                 For i As Integer = 1 To mpnDesc37.Count - 1
                     prTableforExcel.Rows.Add(mpnDesc37(i), Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
                 Next
@@ -835,7 +818,7 @@ Public Class OctoPart_API
     Private Sub dgvBuildPR_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvBuildPR.CellContentClick
         Dim sendergrid = DirectCast(sender, DataGridView)
         If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
-            If e.ColumnIndex = 9 Then
+            If e.ColumnIndex = 10 Then
 
                 Dim i As Integer = e.RowIndex
                 Dim row As DataGridViewRow
@@ -852,8 +835,85 @@ Public Class OctoPart_API
                     DirectCast(row.DataBoundItem, DataRowView).Delete()
                 End If
 
+                Dim totalPriceList As New List(Of Double)
+                Dim totalQtyList As New List(Of Integer)
+
+                For Each r As DataRow In prTable.Rows
+                    If r.Item(9).ToString.Contains("PHP") Then
+                        totalPriceList.Add(r.Item(9).ToString.Split(" ")(1))
+                    End If
+                    totalQtyList.Add(r.Item(7))
+                Next
+
+                Dim prTotalCost As String = totalPriceList.Sum.ToString
+                Dim prTotalCount As String = prTable.Rows.Count
+
+                If prTotalCount > 0 Then
+                    labelPRStat.Text = $"[ Total Items: {prTotalCount}, Total Cost: {prTotalCost}, Total Order Qty: {totalQtyList.Sum} ]"
+                Else
+                    labelPRStat.Text = ""
+                End If
+
             End If
         End If
+    End Sub
+
+    Private Sub dgvBuildPR_CellContentChanged(sender As Object, e As DataGridViewCellEventArgs) Handles dgvBuildPR.CellValueChanged
+
+        If e.ColumnIndex = 7 Then
+            Dim totalPrice As Double = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(9).Value.ToString.Split(" ")(1))
+            Dim unitPrice As Double = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Split(" ")(1))
+            Dim newTotalPrice As String
+            Try
+                If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString) Then
+                    If dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString >= CInt(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value) Then
+                        newTotalPrice = $"PHP {unitPrice * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                        dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
+                    Else
+                        MessageBox.Show($"Please enter a value equal to or above MOQ: {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value.ToString}")
+                        dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = dgvBuildPR.Rows(e.RowIndex).Cells(4).Value
+                    End If
+
+                Else
+                    MessageBox.Show("Please enter a valid numeric value.")
+                    dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+                End If
+            Catch ex As Exception
+                MessageBox.Show("Please enter a valid numeric value.")
+                dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+            End Try
+
+        End If
+
+    End Sub
+
+    Private Sub dgvBuildPR_CellValidating(sender As Object, e As DataGridViewCellValidatingEventArgs) Handles dgvBuildPR.CellValidating
+
+        If e.ColumnIndex = 7 Then
+            dgvBuildPR.Rows(e.RowIndex).ErrorText = ""
+            Dim newQty As Integer
+            If IsNumeric(e.FormattedValue) = True Then
+                If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value) Then
+                    If e.FormattedValue > 0 Then
+                        If e.FormattedValue < dgvBuildPR.Rows(e.RowIndex).Cells(4).Value Then
+                            e.Cancel = True
+                            dgvBuildPR.Rows(e.RowIndex).ErrorText = $"Please enter a value equal to or above {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value}"
+                        End If
+                    Else
+                        e.Cancel = True
+                        dgvBuildPR.Rows(e.RowIndex).ErrorText = "Please enter a valid numeric value"
+                    End If
+
+                ElseIf e.FormattedValue <= 0 Then
+                    e.Cancel = True
+                End If
+            Else
+                e.Cancel = True
+                dgvBuildPR.Rows(e.RowIndex).ErrorText = "Please enter a valid numeric value"
+                MessageBox.Show("Please enter a valid numeric value")
+            End If
+        End If
+
     End Sub
 
     Private Sub addtoExcel(ByVal dt As DataTable, ByVal filename As String)
@@ -894,6 +954,7 @@ Public Class OctoPart_API
             releaseObject(xlWorkBook)
             releaseObject(xlApp)
             MessageBox.Show($"File: [{filename}] succesfully saved.")
+            Exit Sub
         Catch ex As Exception
             Dim sheet1 As Excel.Worksheet = CType(xlWorkBook.Sheets("Sheet1"), Excel.Worksheet)
             sheet1.Delete()
@@ -912,6 +973,8 @@ Public Class OctoPart_API
                 Next
             Next
             xlWorkBook.SaveAs(filename)
+            Dim wsFormatted As Excel.Worksheet = CType(xlWorkBook.Sheets("PR Form (2)"), Excel.Worksheet)
+            wsFormatted.ExportAsFixedFormat(0, "C:\Users\PC\Documents\test.pdf")
             xlWorkBook.Close()
             releaseObject(xlNewSheet)
             releaseObject(worksheets)
@@ -941,13 +1004,15 @@ Public Class OctoPart_API
             groupFilters.Visible = True
             btnSearch.Location = New Point(72, 296)
             statusLabel.Text = "Currently fetching data from authorized distributors... ノ( ゜-゜ノ)"
-            disableControls()
-            populateCategories()
-            enableControls()
+            If cbCategories.Items.Count = 0 Then
+                disableControls()
+                populateCategories()
+            End If
             prTable.Columns.Add("MPN", GetType(String))
             prTable.Columns.Add("Short Description", GetType(String))
             prTable.Columns.Add("Manufacturer", GetType(String))
             prTable.Columns.Add("Distributor", GetType(String))
+            prTable.Columns.Add("MOQ", GetType(String))
             prTable.Columns.Add("Prices", GetType(String))
             prTable.Columns.Add("Product Page", GetType(String))
             prTable.Columns.Add("Quantity", GetType(Integer))
@@ -956,6 +1021,7 @@ Public Class OctoPart_API
             buildPRdgv()
         ElseIf cbSources.SelectedItem = "Shopee" Then
             groupFilters.Visible = False
+            btnSearch.Enabled = True
             btnSearch.Location = New Point(72, 144)
         End If
     End Sub
