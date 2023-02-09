@@ -17,6 +17,7 @@ Public Class OctoPart_API
     Dim searchObj
     Dim csvSavepath As String
     Dim selectedSource As String
+    Public maxRetries As Integer = 3
 
     'Public Async Function sendAPIRequest(ByVal query As String) As Task(Of Object)
 
@@ -51,7 +52,31 @@ Public Class OctoPart_API
     '    End If
 
     'End Function
-
+    Public Async Function DownloadImage(URLandID As Object) As Task(Of Object)
+        If URLandID(0) = "" Then
+            Console.WriteLine($"Failed to download image from URL: {URLandID(0)}")
+        Else
+            Dim retries As Integer = 0
+            Dim maxRetries As Integer = 3
+            While True
+                If retries <> maxRetries Then
+                    Try
+                        Dim wc As New WebClient
+                        Using wc
+                            Dim x = Await wc.DownloadDataTaskAsync(URLandID(0))
+                            Dim myObject = {x, URLandID(1)}
+                            Return myObject
+                        End Using
+                    Catch ex As Exception
+                        statusLabel.Text = $"Error occured when downloading image. Retrying..({retries}/{maxRetries})"
+                        retries += 1
+                    End Try
+                Else
+                    'max retries.
+                End If
+            End While
+        End If
+    End Function
     Private Async Function SearchShopee(ByVal itemToSearch As String, ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel) As Task(Of DataTable)
 
         datagridviewName.Columns.Clear()
@@ -66,6 +91,7 @@ Public Class OctoPart_API
         resultsTable.Columns.Add("Prices")
         resultsTable.Columns.Add("Image URL")
         Dim encodedItemString As String = ""
+        'code to encode string to utf
         For Each character In itemToSearch
             If character = " " Then
                 encodedItemString += "%20"
@@ -73,146 +99,228 @@ Public Class OctoPart_API
                 encodedItemString += character
             End If
         Next
-        Dim html As String
-        'Use Selenium to browse using chrome.
-        'set options to make chrome headless.
-        Dim options As New ChromeOptions()
-        Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript", "headless"}
-        options.AddArguments(optionParamaters)
+        Dim retries As Integer = 0
 
-        'declare a chromedriver service
-        Dim service = ChromeDriverService.CreateDefaultService()
-        service.HideCommandPromptWindow = True
-        'attach the option to the new driver manager.
-        Dim driver As ChromeDriver = New ChromeDriver(service, options)
-        'driver.Manage().Window.Maximize()
-        While True
+tryagain:
+        If retries <> maxRetries And retries < maxRetries Then
+            Dim html As String
+            'Use Selenium to browse using chrome.
+            'set options to make chrome headless.
+            Dim options As New ChromeOptions()
+            Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript", "headless"}
+            options.AddArguments(optionParamaters)
+
+            'declare a chromedriver service
+            Dim service = ChromeDriverService.CreateDefaultService()
+            service.HideCommandPromptWindow = True
+            'attach the option to the new driver manager.
+            Dim driver As ChromeDriver = New ChromeDriver(service, options)
+            'driver.Manage().Window.Maximize()
             'Go to the search result url
             Try
                 lblstatus.Text = "Waiting for a response from Shopee.."
-                driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={encodedItemString}")
                 'set driver to wait for 10 seconds for the page to load.
-                Dim wait As WebDriverWait = New WebDriverWait(driver, TimeSpan.FromSeconds(10))
+                Dim wait As WebDriverWait = New WebDriverWait(driver, TimeSpan.FromSeconds(5))
+                driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={encodedItemString}")
                 wait.IgnoreExceptionTypes(GetType(NoSuchElementException))
-                'wait.Until(Function(webDriver)
-                '               Return webDriver.FindElement(By.ClassName("shopee-search-item-result__items"))
-                '           End Function)
-                wait.Until(Function(webDriver)
+                wait.Until(Function()
                                Try
-                                   driver.FindElement(By.ClassName("shopee-search-item-result__items"))
+                                   'driver.ExecuteScript("return document.readyState").Equals("complete")
+                                   'driver.FindElement(By.ClassName("shopee-search-item-result__items"))
+                                   If driver.FindElement(By.ClassName("shopee-search-item-result__items")).Displayed Then
+                                       Return True
+                                   Else
+                                       Return False
+                                   End If
                                Catch ex As Exception
                                    Dim exType As Type = ex.GetType()
-                                   If exType = GetType(NoSuchElementException) Or exType = GetType(InvalidOperationException) Then
+                                   If (
+                                       exType = GetType(NoSuchElementException) Or exType = GetType(InvalidOperationException) Or
+                                       exType = GetType(ElementNotVisibleException) Or exType = GetType(WebDriverException)) Then
                                        Return False
                                        'by returning false, wait will still rerun the function.
                                    Else
                                        Throw
                                    End If
                                End Try
-                               Return True
                            End Function)
-                lblstatus.Text = "Shopee items found!"
-                Exit While
+                'Wait for a set second before scrolling.
+                Await Task.Delay(1000)
+                'Scroll down to the bottom of the page to load all items.
+                lblstatus.Text = "Enabling scripts from shopee.."
+                While True
+                    Dim currentYPosition = driver.ExecuteScript("return window.pageYOffset;")
+                    'Scroll by a bit.
+                    driver.ExecuteScript("window.scrollTo(0, window.scrollY + 500)")
+
+                    'Wait for stuff to load.
+                    Await Task.Delay(300)
+
+                    'Calculate new scroll height and compare it with last height.
+                    Dim newHeight = driver.ExecuteScript("return window.pageYOffset;")
+                    If newHeight = currentYPosition Then 'This means the browser reached the max height.
+                        Console.WriteLine("Reached bottom of the page.")
+                        lblstatus.Text = "Data rendered from Shopee."
+                        Exit While
+                    End If
+                End While
+                lblstatus.Text = "Waiting for everything to load."
+                'wait for a bit.
+                Await Task.Delay(3000)
+                'set the pagesource to the html string variable.
+                lblstatus.Text = "Parsing results.."
+                html = driver.PageSource
+                driver.Quit()
+                lblstatus.Text = "Shopee results page loaded."
             Catch ex As Exception
-                Dim dlgrslt = MessageBox.Show($"Exception occured when loading webpage.{Environment.NewLine}{ex.Message}", "Oops, something went wrong!", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
+                lblstatus.Text = "Program could not find results."
+                Dim dlgrslt = MessageBox.Show($"The search for '{tbKeyword.Text}' has no results on Shopee.", "Oops, something went wrong!", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
                 If dlgrslt = DialogResult.Retry Then
-                    driver.Close()
+                    driver.Navigate().Refresh()
+                    GoTo tryagain
                 Else
-                    driver.Close()
-                    Application.Restart()
+                    driver.Quit()
+                    lblstatus.Text = "Enter a keyword to search."
+                    progressBar.Visible = False
+                    Exit Function
                 End If
             End Try
-        End While
+            'START OF PARSE
+            'Load it as an HTML Document.
+            Try
+                Dim htmlDocument As New HtmlDocument
+                htmlDocument.LoadHtml(html)
 
-        'Scroll up to the bottom of the page to load all items.
-        lblstatus.Text = "Enabling scripts from shopee.."
-        While True
-            Dim currentYPosition = driver.ExecuteScript("return window.pageYOffset;")
-            'Scroll by a bit.
-            driver.ExecuteScript("window.scrollTo(0, window.scrollY + 500)")
+                'Make a single node out of a body.
+                Dim htmlBody = htmlDocument.DocumentNode.SelectSingleNode("//body")
 
-            'Wait for stuff to load.
-            Await Task.Delay(200)
+                'find out the number of page in result
 
-            'Calculate new scroll height and compare it with last height.
-            Dim newHeight = driver.ExecuteScript("return window.pageYOffset;")
-            If newHeight = currentYPosition Then 'This means the browser reached the max height.
-                Console.WriteLine("Reached bottom of the page.")
-                lblstatus.Text = "Data rendered from Shopee."
-                Exit While
-            End If
-        End While
-        'set the pagesource to the html string variable.
-        lblstatus.Text = "Parsing results.."
-        html = driver.PageSource
-        driver.Close()
-
-        'Load it as an HTML Document.
-        Try
-            Dim htmlDocument As New HtmlDocument
-            htmlDocument.LoadHtml(html)
-
-            'Make a single node out of a body.
-            Dim htmlBody = htmlDocument.DocumentNode.SelectSingleNode("//body")
-
-            'find out the number of page in result
-
-            'Select the search result node.
-            Dim searchResultsNode As HtmlNode = htmlBody.SelectSingleNode(".//div[(@class='row shopee-search-item-result__items')]")
-            'Save the search result in an HTMLNodeCollection.
-            progressBar.Maximum = searchResultsNode.ChildNodes.Count
-            For Each items As HtmlNode In searchResultsNode.SelectNodes(".//div[(@class='col-xs-2-4 shopee-search-item-result__item')]")
-                progressBar.Increment(1)
-                lblstatus.Text = $"Parsing results.. ({progressBar.Value}/{progressBar.Maximum})"
-                Dim itemName As String = items.SelectSingleNode(".//div[(@class='ie3A+n bM+7UW Cve6sh')]").InnerText
-                'Dim price As String = items.SelectSingleNode(".//div[(@class='ZEgDH9')]").InnerText
-                Dim location As String = items.SelectSingleNode(".//div[(@class='zGGwiV')]").InnerText
-                Dim url As String = items.SelectSingleNode(".//a[(@data-sqe='link')]").Attributes("href").Value
-                Dim imageUrl As String = items.SelectSingleNode(".//img[(@class='_7DTxhh vc8g9F')]").Attributes("src").Value
-                Dim tClient As New WebClient
-                Dim tImage = New Bitmap(Bitmap.FromStream(New MemoryStream(tClient.DownloadData(imageUrl))), 120, 120)
-                Dim price As String = ""
-                'Price varies, sometimes shopee displays the original price, or sometimes it displays a price range
-                'And sometimes it also displays the old price, and the new price beside it. So we'll capture the NODE
-                'of the whole price section instead and count the number of children inside it.
-                Dim priceNode As HtmlNode = items.SelectSingleNode(".//div[(@class='hpDKMN')]")
-                'this is either a Price Range or a Single Price
-                Dim currentPriceClass As HtmlNode = priceNode.SelectSingleNode(".//div[(@class='vioxXd rVLWG6')]")
-                For Each span As HtmlNode In currentPriceClass.ChildNodes
-                    If span.Name = "span" Then
-                        price += span.InnerText
+                'Select the search result node.
+                Dim searchResultsNode As HtmlNode = htmlBody.SelectSingleNode(".//div[(@class='row shopee-search-item-result__items')]")
+                'Save the search result in an HTMLNodeCollection.
+                progressBar.Maximum = searchResultsNode.ChildNodes.Count
+                Dim listOfImageUrl As New List(Of Object)
+                For Each items As HtmlNode In searchResultsNode.SelectNodes(".//div[(@class='col-xs-2-4 shopee-search-item-result__item')]")
+                    progressBar.Increment(1)
+                    lblstatus.Text = $"Parsing results.. ({progressBar.Value}/{progressBar.Maximum})"
+                    Dim itemName As String
+                    If items.SelectSingleNode(".//div[(@class='ie3A+n bM+7UW Cve6sh')]") Is Nothing Then
+                        retries += 1
+                        GoTo tryagain
                     Else
-                        price += " - "
+                        itemName = items.SelectSingleNode(".//div[(@class='ie3A+n bM+7UW Cve6sh')]").InnerText
                     End If
+                    Dim location As String
+                    If items.SelectSingleNode(".//div[(@class='zGGwiV')]") Is Nothing Then
+                        retries += 1
+                        GoTo tryagain
+                    Else
+                        location = items.SelectSingleNode(".//div[(@class='zGGwiV')]").InnerText
+                    End If
+                    Dim url As String
+                    If items.SelectSingleNode(".//a[(@data-sqe='link')]") Is Nothing Then
+                        retries += 1
+                        GoTo tryagain
+                    Else
+                        url = items.SelectSingleNode(".//a[(@data-sqe='link')]").Attributes("href").Value
+                    End If
+                    Dim imageUrl As String
+                    If items.SelectSingleNode(".//img[(@class='_7DTxhh vc8g9F')]") Is Nothing Then
+                        retries += 1
+                        GoTo tryagain
+                    Else
+                        imageUrl = items.SelectSingleNode(".//img[(@class='_7DTxhh vc8g9F')]").Attributes("src").Value
+                    End If
+
+                    Dim price As String = ""
+                    'Price varies, sometimes shopee displays the original price, or sometimes it displays a price range
+                    'And sometimes it also displays the old price, and the new price beside it. So we'll capture the NODE
+                    'of the whole price section instead and count the number of children inside it.
+                    Dim priceNode As HtmlNode = items.SelectSingleNode(".//div[(@class='hpDKMN')]")
+                    If items.SelectSingleNode(".//div[(@class='hpDKMN')]") Is Nothing Then
+                        GoTo tryagain
+                    Else
+                        priceNode = items.SelectSingleNode(".//div[(@class='hpDKMN')]")
+                    End If
+                    'this is either a Price Range or a Single Price
+                    Dim currentPriceClass As HtmlNode
+                    If priceNode.SelectSingleNode(".//div[(@class='vioxXd rVLWG6')]") Is Nothing Then
+                        retries += 1
+                        GoTo tryagain
+                    Else
+                        currentPriceClass = priceNode.SelectSingleNode(".//div[(@class='vioxXd rVLWG6')]")
+                    End If
+                    For Each span As HtmlNode In currentPriceClass.ChildNodes
+                        If span.Name = "span" Then
+                            price += span.InnerText
+                        Else
+                            price += " - "
+                        End If
+                    Next
+                    Dim newRow = resultsTable.NewRow()
+                    newRow.Item("Item Name") = itemName
+                    'newRow.Item("Image") = tImage
+                    newRow.Item("Location") = location
+                    newRow.Item("Product Page") = "https://www.shopee.ph" + url
+                    newRow.Item("Prices") = price
+                    listOfImageUrl.Add({imageUrl, itemName})
+                    'newRow.Item("Image URL") = imageUrl
+                    resultsTable.Rows.Add(newRow)
+                    'resultsTable.Columns.Add("Item Name")
+                    'resultsTable.Columns.Add("Location")
+                    'resultsTable.Columns.Add("Product Page")
+                    'resultsTable.Columns.Add("Prices")
+                    'resultsTable.Columns.Add("Image URL")
                 Next
-                Dim newRow = resultsTable.NewRow()
-                newRow.Item("Item Name") = itemName
-                newRow.Item("Image") = tImage
-                newRow.Item("Location") = location
-                newRow.Item("Product Page") = "https://www.shopee.ph" + url
-                newRow.Item("Prices") = price
-                'newRow.Item("Image URL") = imageUrl
+                Console.WriteLine("Starting parallel download:")
 
-                resultsTable.Rows.Add(newRow)
-                'resultsTable.Columns.Add("Item Name")
-                'resultsTable.Columns.Add("Location")
-                'resultsTable.Columns.Add("Product Page")
-                'resultsTable.Columns.Add("Prices")
-                'resultsTable.Columns.Add("Image URL")
-            Next
-            progressBar.Value = progressBar.Maximum
-            progressBar.Visible = False
-            lblstatus.Text = "Fetch complete!"
-        Catch ex As Exception
-            Dim result = MessageBox.Show($"Error occured when parsing results.{Environment.NewLine}{ex.Message}", "Oops, something went wrong!", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
-            If result = DialogResult.Retry Then
-                Application.Restart()
-            Else
-                Me.Close()
-            End If
-        End Try
+                Dim resultCollection As New Concurrent.ConcurrentBag(Of Task)
+                Parallel.ForEach(listOfImageUrl, Sub(currentURL)
+                                                     Dim myByte = DownloadImage(currentURL)
+                                                     resultCollection.Add(myByte)
+                                                 End Sub)
+                Await Task.WhenAll(resultCollection)
+                Console.WriteLine(resultCollection)
+                Dim myBitmapList As New List(Of Object)
+                For Each myTask As Task(Of Object) In resultCollection
+                    Dim myByte As Byte() = myTask.Result(0)
+                    'currentObject(0) is the container for the bytes
+                    'currentObject(1) is the container for the item name
 
-        Return resultsTable
+                    Dim myStream As MemoryStream = New MemoryStream(myByte.ToArray)
+                    Dim tImage = New Bitmap(Bitmap.FromStream(myStream), 120, 120)
+                    myBitmapList.Add({tImage, myTask.Result(1)})
+                Next
+
+                For Each rows As DataRow In resultsTable.Rows
+                    For Each items In myBitmapList
+                        If rows.Item("Item Name") = items(1) Then
+                            rows.Item("Image") = items(0)
+                        End If
+                    Next
+                Next
+
+                progressBar.Value = progressBar.Maximum
+                progressBar.Visible = False
+                lblstatus.Text = "Fetch complete!"
+            Catch ex As Exception
+                'Dim result = MessageBox.Show($"Error occured when parsing results.{Environment.NewLine}{ex.Message}", "Oops, something went wrong!", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
+                'If result = DialogResult.Retry Then
+                '    Application.Restart()
+                'Else
+                '    Me.Close()
+                'End If
+
+                Console.WriteLine(ex.GetType())
+            End Try
+            'END OF PARSE
+            Return resultsTable
+        Else
+            MessageBox.Show("Max retries time out error occured! Program is restarting.", "Oops, something went wrong!", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Application.Restart()
+            Exit Function
+        End If
     End Function
 
     Private Sub disableControls()
@@ -225,20 +333,17 @@ Public Class OctoPart_API
 
         Next
     End Sub
-
     Private Sub enableControls()
         For Each c As Control In Me.Controls
             c.Enabled = True
         Next
     End Sub
-
     Private Sub OctoPart_API_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         cbSources.Items.Add("Shopee")
         cbSources.Items.Add("Octopart")
         groupFilters.Visible = False
         statusLabel.Text = "Please select a source"
     End Sub
-
     Private Async Sub populateCategories()
 
         Dim fetchCategories As String = "query Categories {
@@ -295,12 +400,9 @@ Public Class OctoPart_API
         statusLabel.Text = "You can start searching by Category or a specific keyword ノ( ゜-゜ノ)"
 
     End Sub
-
     Private Async Function searchOcto(ByVal keyword As String, ByVal category As String, ByVal subcategory As String) As Task
-
         disableControls()
         Dim filters As String
-
         If category = "All Categories" Then
             filters = ""
         ElseIf subcategory = "N/A" Then
@@ -410,7 +512,6 @@ Public Class OctoPart_API
         resultstable(searchObj, dgvOctopartResults)
 
     End Function
-
     Private Function resultstable(ByVal res As NexarAPIResponse, ByRef dgv As DataGridView)
 
         dgv.Columns.Clear()
@@ -588,7 +689,6 @@ Public Class OctoPart_API
         End If
 
     End Function
-
     Private Sub cbCategories_SelectedIndexChanged_1(sender As Object, e As EventArgs) Handles cbCategories.SelectedIndexChanged
         populateSubcategories(cbCategories.Text)
     End Sub
@@ -600,28 +700,37 @@ Public Class OctoPart_API
         ElseIf selectedSource = "Shopee" Then
             disableControls()
             Dim resultsDataTable = Await SearchShopee(tbKeyword.Text, dgvOctopartResults, ToolStripProgressBar1, statusLabel)
-            dgvOctopartResults.DataSource = resultsDataTable
-            dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
-            dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
-            dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
-            Dim btn As New DataGridViewButtonColumn()
-            dgvOctopartResults.Columns.Add(btn)
-            btn.HeaderText = "Item Links"
-            btn.Text = "View on browser"
-            btn.Name = "btnLink"
-            btn.UseColumnTextForButtonValue = True
+            If resultsDataTable Is Nothing Then
+                enableControls()
+                tbKeyword.Clear()
+                tbKeyword.Select()
+                Exit Sub
+                'do nothing if sub is empty.
 
-            Dim btnAddtoPR As New DataGridViewButtonColumn()
-            dgvOctopartResults.Columns.Add(btnAddtoPR)
-            btnAddtoPR.HeaderText = "Add to PR"
-            btnAddtoPR.Text = "Add to Purchase Request"
-            btnAddtoPR.Name = "btnAddToPR"
-            btnAddtoPR.UseColumnTextForButtonValue = True
-            'hide product page
-            dgvOctopartResults.Columns("Product Page").Visible = False
-            dgvOctopartResults.Columns("Image URL").Visible = False
-            dgvOctopartResults.AllowUserToAddRows = False
-            enableControls()
+            Else
+                dgvOctopartResults.DataSource = resultsDataTable
+                dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+                dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+                dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+                Dim btn As New DataGridViewButtonColumn()
+                dgvOctopartResults.Columns.Add(btn)
+                btn.HeaderText = "Item Links"
+                btn.Text = "View on browser"
+                btn.Name = "btnLink"
+                btn.UseColumnTextForButtonValue = True
+
+                Dim btnAddtoPR As New DataGridViewButtonColumn()
+                dgvOctopartResults.Columns.Add(btnAddtoPR)
+                btnAddtoPR.HeaderText = "Add to PR"
+                btnAddtoPR.Text = "Add to Purchase Request"
+                btnAddtoPR.Name = "btnAddToPR"
+                btnAddtoPR.UseColumnTextForButtonValue = True
+                'hide product page
+                dgvOctopartResults.Columns("Product Page").Visible = False
+                dgvOctopartResults.Columns("Image URL").Visible = False
+                dgvOctopartResults.AllowUserToAddRows = False
+                enableControls()
+            End If
         Else
             MessageBox.Show("Please select a source!!!!!")
         End If
