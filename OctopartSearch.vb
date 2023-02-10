@@ -145,8 +145,8 @@ Module OctopartSearch
 
     Private Async Function updateToken() As Task(Of Object)
 
-        Dim clientID As String = "11b22d9d-3b47-4ebe-87a8-d59ff12a678c"
-        Dim clientSecret As String = "fe05c906-9d0e-4f22-aedc-aabfdf5d05dc"
+        Dim clientID As String = "a4a31e78-f27c-44a8-b9e5-97df61da1042"
+        Dim clientSecret As String = "84f39d6b-cf4f-4985-9c1d-d02cb4ec39f5"
         httpClient = New HttpClient()
 
         If String.IsNullOrEmpty(NexarToken) Or DateTime.UtcNow() >= tokenExpiry Then
