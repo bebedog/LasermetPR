@@ -21,8 +21,8 @@ Public Class OctoPart_API
     Public currentPage As Integer
     Public totalPage As Integer
     Public currentItemToSearch As String
-
     Public myBitmapList As New List(Of Object)
+    Public myChromeDriver As ChromeDriver
     Public Async Function DownloadImage(URLandID As Object) As Task(Of Object)
         If URLandID(0) = "" Then
             Console.WriteLine($"Failed to download image from URL: {URLandID(0)}")
@@ -50,7 +50,7 @@ Public Class OctoPart_API
         End If
     End Function
 
-    Private Async Function SearchShopee(ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel, Optional itemToSearch As String = Nothing) As Task(Of DataTable)
+    Private Async Function SearchShopee(ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel, Optional itemToSearch As String = Nothing, Optional method As String = Nothing) As Task(Of DataTable)
         datagridviewName.Columns.Clear()
         progressBar.Value = 0
         progressBar.Visible = True
@@ -63,8 +63,6 @@ Public Class OctoPart_API
         resultsTable.Columns.Add("Prices")
         resultsTable.Columns.Add("Image URL")
         Dim encodedItemString As String = ""
-        'code to encode string to utf
-
         Dim retries As Integer = 0
 
 tryagain:
@@ -73,7 +71,7 @@ tryagain:
             'Use Selenium to browse using chrome.
             'set options to make chrome headless.
             Dim options As New ChromeOptions()
-            Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript", "headless"}
+            Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript"}
             options.AddArguments(optionParamaters)
 
             'declare a chromedriver service
@@ -83,6 +81,9 @@ tryagain:
             Dim driver As ChromeDriver = New ChromeDriver(service, options)
             'driver.Manage().Window.Maximize()
             'Go to the search result url
+
+
+            '===================OPEN CHROME & CHECK TO SEE IF IT HAS RESULTS===================
             Try
                 lblstatus.Text = "Waiting for a response from Shopee.."
                 'set driver to wait for 10 seconds for the page to load.
@@ -178,8 +179,11 @@ tryagain:
                     Exit Function
                 End If
             End Try
-            'START OF PARSE
+            '===================OPEN CHROME & CHECK TO SEE IF IT HAS RESULTS===================
+
+
             'Load it as an HTML Document.
+            '===================SCRAPE WEBPAGE===================
             Try
                 Dim htmlDocument As New HtmlDocument
                 htmlDocument.LoadHtml(html)
@@ -324,8 +328,110 @@ tryagain:
             MessageBox.Show("Max retries time out error occured! Program is restarting.", "Oops, something went wrong!", MessageBoxButtons.OK, MessageBoxIcon.Error)
             Application.Restart()
             Exit Function
+            '===================SCRAPE WEBPAGE===================
+
         End If
+
     End Function
+
+    Public Function createChromeDriver() As ChromeDriver
+        Dim options As New ChromeOptions()
+        Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript"}
+        options.AddArguments(optionParamaters)
+        'declare a chromedriver service
+        Dim service = ChromeDriverService.CreateDefaultService()
+        service.HideCommandPromptWindow = True
+        'attach the option to the new driver manager.
+        Dim driver As New ChromeDriver(service, options)
+        Return driver
+    End Function
+    Private Async Function SearchShopeeVersion2(ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel,
+                                                 driver As ChromeDriver, Optional itemTosearch As String = Nothing, Optional method As String = Nothing) As Task
+
+        Dim retries As Integer = 0
+        'Use Selenium to browse using chrome.
+        'set options to make chrome headless.
+
+        Dim html As String = ""
+        Dim encodedItemString As String = ""
+        Select Case method
+            Case Nothing
+                'if no method specified. Search as normal.
+                For Each character In itemTosearch
+                    If character = " " Then
+                        encodedItemString += "%20"
+                    Else
+                        encodedItemString += character
+                    End If
+                Next
+                lblstatus.Text = $"Searching for '{itemTosearch}' on Shopee.."
+                Dim wait As New WebDriverWait(driver, TimeSpan.FromSeconds(5))
+                wait.IgnoreExceptionTypes(GetType(NoSuchElementException))
+                driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={encodedItemString}")
+                'wait until page results and page controller are loaded.
+                wait.Until(Function()
+                               Try
+
+                                   If driver.FindElement(By.ClassName("shopee-search-item-result__items")).Displayed AndAlso driver.FindElement(By.ClassName("shopee-mini-page-controller__state")).Displayed Then
+                                       'check all datacards if they contain information
+                                       Return True
+                                   Else
+                                       Return False
+                                   End If
+                               Catch ex As Exception
+                                   Dim exType As Type = ex.GetType()
+                                   If (
+                                       exType = GetType(NoSuchElementException) Or exType = GetType(InvalidOperationException) Or
+                                       exType = GetType(ElementNotVisibleException) Or exType = GetType(WebDriverException)) Then
+                                       Return False
+                                       'by returning false, wait will still rerun the function.
+                                   Else
+                                       Throw
+                                   End If
+                               End Try
+                           End Function)
+                'wait for 2 seconds.
+                Await Task.Delay(2000)
+
+                'once it is loaded, scroll to the bottom of the page.
+                While True
+                    Dim currentYPosition = driver.ExecuteScript("return window.pageYOffset;")
+                    'Scroll by a bit.
+                    driver.ExecuteScript("window.scrollTo(0, window.scrollY + 500)")
+
+                    'Wait for stuff to load.
+                    Await Task.Delay(300)
+
+                    'Calculate new scroll height and compare it with last height.
+                    Dim newHeight = driver.ExecuteScript("return window.pageYOffset;")
+                    If newHeight = currentYPosition Then 'This means the browser reached the max height.
+                        Console.WriteLine("Reached bottom of the page.")
+                        lblstatus.Text = "Checking if data rendered from Shopee is loaded."
+
+                        'check all cards here.
+                        Dim checkHTML = driver.PageSource
+                        Dim checkHTMLDocument As New HtmlDocument
+                        checkHTMLDocument.LoadHtml(checkHTML)
+                        '_7DTxhh +ZCtwF are classes without images.
+                        Dim defaultCardImage = checkHTMLDocument.DocumentNode.SelectNodes("//img[(@class='_7DTxhh +ZCtwF')]")
+                        If defaultCardImage Is Nothing Then
+                            Exit While
+                        Else
+                            'there are still some elements that didn't finish loading.
+                            'scroll back to top and re-run the program.
+                            lblstatus.Text = "Some elements didn't load. (ㆆ_ㆆ) Retrying!"
+                            driver.ExecuteAsyncScript("window.scrollTo(0,0);")
+                        End If
+                    End If
+                End While
+                'we are now ready to parse the data.
+            Case "Next"
+
+            Case "Prev"
+
+        End Select
+    End Function
+
     Public Sub setAndEnableShopeePageController()
         If currentPage = 1 Then
             btnPrevious.Enabled = False
@@ -358,6 +464,7 @@ tryagain:
         Next
     End Sub
     Private Sub OctoPart_API_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        myChromeDriver = createChromeDriver()
         Console.WriteLine(Application.StartupPath)
         cbSources.Items.Add("Shopee")
         cbSources.Items.Add("Octopart")
@@ -1339,5 +1446,14 @@ tryagain:
             dgvOctopartResults.AllowUserToAddRows = False
             enableControls()
         End If
+    End Sub
+
+    Private Async Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        'Await SearchShopeeVersion2(ToolStripProgressBar1, statusLabel, "hello world")
+        Await SearchShopeeVersion2(ToolStripProgressBar1, statusLabel, myChromeDriver, "hello world")
+    End Sub
+
+    Private Sub OctoPart_API_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
+        myChromeDriver.Quit()
     End Sub
 End Class
