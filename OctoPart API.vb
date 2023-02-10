@@ -18,7 +18,6 @@ Public Class OctoPart_API
     Dim csvSavepath As String
     Dim selectedSource As String
     Public maxRetries As Integer = 3
-
     Public currentPage As Integer
     Public totalPage As Integer
     Public currentItemToSearch As String
@@ -50,6 +49,7 @@ Public Class OctoPart_API
             End While
         End If
     End Function
+
     Private Async Function SearchShopee(ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel, Optional itemToSearch As String = Nothing) As Task(Of DataTable)
         datagridviewName.Columns.Clear()
         progressBar.Value = 0
@@ -679,9 +679,7 @@ tryagain:
 
     End Sub
     Private Async Function populateSubcategories(ByVal category As String) As Task
-
         cbSubcategories.Items.Clear()
-
         Dim subcategoriesList As New List(Of String)
         subcategoriesList.Add("All Subcategories")
 
