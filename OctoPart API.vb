@@ -18,7 +18,34 @@ Public Class OctoPart_API
     Dim csvSavepath As String
     Dim selectedSource As String
     Public maxRetries As Integer = 3
-    
+
+
+    Public Async Function DownloadImage(URLandID As Object) As Task(Of Object)
+        If URLandID(0) = "" Then
+            Console.WriteLine($"Failed to download image from URL: {URLandID(0)}")
+            Return {Nothing, URLandID(1)}
+        Else
+            Dim retries As Integer = 0
+            Dim maxRetries As Integer = 3
+            While True
+                If retries <> maxRetries Then
+                    Try
+                        Dim wc As New WebClient
+                        Using wc
+                            Dim x = Await wc.DownloadDataTaskAsync(URLandID(0))
+                            Dim myObject = {x, URLandID(1)}
+                            Return myObject
+                        End Using
+                    Catch ex As Exception
+                        statusLabel.Text = $"Error occured when downloading image. Retrying..({retries}/{maxRetries})"
+                        retries += 1
+                    End Try
+                Else
+                    'max retries.
+                End If
+            End While
+        End If
+    End Function
     Private Async Function SearchShopee(ByVal itemToSearch As String, ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel) As Task(Of DataTable)
         datagridviewName.Columns.Clear()
         progressBar.Value = 0
@@ -601,9 +628,7 @@ tryagain:
 
     End Sub
     Private Async Function populateSubcategories(ByVal category As String) As Task
-
         cbSubcategories.Items.Clear()
-
         Dim subcategoriesList As New List(Of String)
         subcategoriesList.Add("All Subcategories")
 
