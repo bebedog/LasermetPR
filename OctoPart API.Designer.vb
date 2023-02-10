@@ -41,11 +41,17 @@ Partial Class OctoPart_API
         Me.dlgSaveFile = New System.Windows.Forms.SaveFileDialog()
         Me.cbSources = New System.Windows.Forms.ComboBox()
         Me.labelSource = New System.Windows.Forms.Label()
+        Me.lblCurrPage = New System.Windows.Forms.Label()
+        Me.lblNumberOfPages = New System.Windows.Forms.Label()
+        Me.shopeeNavPanel = New System.Windows.Forms.GroupBox()
+        Me.btnPrevious = New System.Windows.Forms.Button()
+        Me.btnNext = New System.Windows.Forms.Button()
         Me.labelPRStat = New System.Windows.Forms.Label()
         CType(Me.dgvOctopartResults, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.dgvBuildPR, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.groupFilters.SuspendLayout()
         Me.StatusStrip1.SuspendLayout()
+        Me.shopeeNavPanel.SuspendLayout()
         Me.SuspendLayout()
         '
         'dgvOctopartResults
@@ -63,7 +69,7 @@ Partial Class OctoPart_API
         Me.dgvOctopartResults.Name = "dgvOctopartResults"
         Me.dgvOctopartResults.ReadOnly = True
         Me.dgvOctopartResults.RowHeadersWidthSizeMode = System.Windows.Forms.DataGridViewRowHeadersWidthSizeMode.DisableResizing
-        Me.dgvOctopartResults.Size = New System.Drawing.Size(756, 380)
+        Me.dgvOctopartResults.Size = New System.Drawing.Size(756, 349)
         Me.dgvOctopartResults.TabIndex = 0
         '
         'dgvBuildPR
@@ -77,9 +83,9 @@ Partial Class OctoPart_API
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.dgvBuildPR.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells
         Me.dgvBuildPR.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
-        Me.dgvBuildPR.Location = New System.Drawing.Point(280, 448)
+        Me.dgvBuildPR.Location = New System.Drawing.Point(280, 493)
         Me.dgvBuildPR.Name = "dgvBuildPR"
-        Me.dgvBuildPR.Size = New System.Drawing.Size(756, 241)
+        Me.dgvBuildPR.Size = New System.Drawing.Size(756, 196)
         Me.dgvBuildPR.TabIndex = 1
         '
         'labelOctopartResults
@@ -96,7 +102,7 @@ Partial Class OctoPart_API
         '
         Me.labelBuildPR.AutoSize = True
         Me.labelBuildPR.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelBuildPR.Location = New System.Drawing.Point(280, 424)
+        Me.labelBuildPR.Location = New System.Drawing.Point(280, 411)
         Me.labelBuildPR.Name = "labelBuildPR"
         Me.labelBuildPR.Size = New System.Drawing.Size(78, 20)
         Me.labelBuildPR.TabIndex = 3
@@ -209,6 +215,14 @@ Partial Class OctoPart_API
         Me.ToolStripProgressBar1.Size = New System.Drawing.Size(100, 16)
         Me.ToolStripProgressBar1.Visible = False
         '
+        'btnGetTotal
+        '
+        Me.ToolStripProgressBar1.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right
+        Me.ToolStripProgressBar1.Name = "ToolStripProgressBar1"
+        Me.ToolStripProgressBar1.RightToLeft = System.Windows.Forms.RightToLeft.Yes
+        Me.ToolStripProgressBar1.Size = New System.Drawing.Size(100, 16)
+        Me.ToolStripProgressBar1.Visible = False
+        '
         'btnExportPR
         '
         Me.btnExportPR.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
@@ -242,6 +256,60 @@ Partial Class OctoPart_API
         Me.labelSource.TabIndex = 23
         Me.labelSource.Text = "Source"
         '
+        'lblCurrPage
+        '
+        Me.lblCurrPage.AutoSize = True
+        Me.lblCurrPage.BackColor = System.Drawing.Color.Transparent
+        Me.lblCurrPage.ForeColor = System.Drawing.Color.FromArgb(CType(CType(210, Byte), Integer), CType(CType(123, Byte), Integer), CType(CType(87, Byte), Integer))
+        Me.lblCurrPage.Location = New System.Drawing.Point(62, 21)
+        Me.lblCurrPage.Name = "lblCurrPage"
+        Me.lblCurrPage.Size = New System.Drawing.Size(13, 13)
+        Me.lblCurrPage.TabIndex = 24
+        Me.lblCurrPage.Text = "1"
+        Me.lblCurrPage.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        '
+        'lblNumberOfPages
+        '
+        Me.lblNumberOfPages.AutoSize = True
+        Me.lblNumberOfPages.Location = New System.Drawing.Point(72, 21)
+        Me.lblNumberOfPages.Name = "lblNumberOfPages"
+        Me.lblNumberOfPages.Size = New System.Drawing.Size(30, 13)
+        Me.lblNumberOfPages.TabIndex = 25
+        Me.lblNumberOfPages.Text = "/100"
+        Me.lblNumberOfPages.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'shopeeNavPanel
+        '
+        Me.shopeeNavPanel.Controls.Add(Me.btnNext)
+        Me.shopeeNavPanel.Controls.Add(Me.lblNumberOfPages)
+        Me.shopeeNavPanel.Controls.Add(Me.btnPrevious)
+        Me.shopeeNavPanel.Controls.Add(Me.lblCurrPage)
+        Me.shopeeNavPanel.Location = New System.Drawing.Point(874, 395)
+        Me.shopeeNavPanel.Name = "shopeeNavPanel"
+        Me.shopeeNavPanel.Size = New System.Drawing.Size(162, 47)
+        Me.shopeeNavPanel.TabIndex = 27
+        Me.shopeeNavPanel.TabStop = False
+        Me.shopeeNavPanel.Text = "Shopee Page Control"
+        Me.shopeeNavPanel.Visible = False
+        '
+        'btnPrevious
+        '
+        Me.btnPrevious.Enabled = False
+        Me.btnPrevious.Location = New System.Drawing.Point(28, 16)
+        Me.btnPrevious.Name = "btnPrevious"
+        Me.btnPrevious.Size = New System.Drawing.Size(28, 23)
+        Me.btnPrevious.TabIndex = 28
+        Me.btnPrevious.Text = "<"
+        Me.btnPrevious.UseVisualStyleBackColor = True
+        '
+        'btnNext
+        '
+        Me.btnNext.Location = New System.Drawing.Point(108, 16)
+        Me.btnNext.Name = "btnNext"
+        Me.btnNext.Size = New System.Drawing.Size(28, 23)
+        Me.btnNext.TabIndex = 28
+        Me.btnNext.Text = ">"
+        Me.btnNext.UseVisualStyleBackColor = True
         'labelPRStat
         '
         Me.labelPRStat.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
@@ -258,6 +326,7 @@ Partial Class OctoPart_API
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(1054, 751)
+        Me.Controls.Add(Me.shopeeNavPanel)
         Me.Controls.Add(Me.labelPRStat)
         Me.Controls.Add(Me.labelSource)
         Me.Controls.Add(Me.cbSources)
@@ -279,6 +348,8 @@ Partial Class OctoPart_API
         Me.groupFilters.PerformLayout()
         Me.StatusStrip1.ResumeLayout(False)
         Me.StatusStrip1.PerformLayout()
+        Me.shopeeNavPanel.ResumeLayout(False)
+        Me.shopeeNavPanel.PerformLayout()
         Me.ResumeLayout(False)
         Me.PerformLayout()
 
@@ -303,5 +374,10 @@ Partial Class OctoPart_API
     Friend WithEvents ToolStripProgressBar1 As ToolStripProgressBar
     Friend WithEvents cbSources As ComboBox
     Friend WithEvents labelSource As Label
+    Friend WithEvents lblCurrPage As Label
+    Friend WithEvents lblNumberOfPages As Label
+    Friend WithEvents shopeeNavPanel As GroupBox
+    Friend WithEvents btnNext As Button
+    Friend WithEvents btnPrevious As Button
     Friend WithEvents labelPRStat As Label
 End Class

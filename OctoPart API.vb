@@ -18,8 +18,11 @@ Public Class OctoPart_API
     Dim csvSavepath As String
     Dim selectedSource As String
     Public maxRetries As Integer = 3
+    Public currentPage As Integer
+    Public totalPage As Integer
+    Public currentItemToSearch As String
 
-
+    Public myBitmapList As New List(Of Object)
     Public Async Function DownloadImage(URLandID As Object) As Task(Of Object)
         If URLandID(0) = "" Then
             Console.WriteLine($"Failed to download image from URL: {URLandID(0)}")
@@ -46,7 +49,8 @@ Public Class OctoPart_API
             End While
         End If
     End Function
-    Private Async Function SearchShopee(ByVal itemToSearch As String, ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel) As Task(Of DataTable)
+
+    Private Async Function SearchShopee(ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel, Optional itemToSearch As String = Nothing) As Task(Of DataTable)
         datagridviewName.Columns.Clear()
         progressBar.Value = 0
         progressBar.Visible = True
@@ -60,13 +64,7 @@ Public Class OctoPart_API
         resultsTable.Columns.Add("Image URL")
         Dim encodedItemString As String = ""
         'code to encode string to utf
-        For Each character In itemToSearch
-            If character = " " Then
-                encodedItemString += "%20"
-            Else
-                encodedItemString += character
-            End If
-        Next
+
         Dim retries As Integer = 0
 
 tryagain:
@@ -89,13 +87,26 @@ tryagain:
                 lblstatus.Text = "Waiting for a response from Shopee.."
                 'set driver to wait for 10 seconds for the page to load.
                 Dim wait As WebDriverWait = New WebDriverWait(driver, TimeSpan.FromSeconds(5))
-                driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={encodedItemString}")
+                If itemToSearch = Nothing Then
+                    driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={currentItemToSearch}&page={currentPage}")
+                Else
+                    For Each character In itemToSearch
+                        If character = " " Then
+                            encodedItemString += "%20"
+                        Else
+                            encodedItemString += character
+                        End If
+                    Next
+                    currentItemToSearch = encodedItemString
+                    driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={encodedItemString}")
+                End If
+
                 wait.IgnoreExceptionTypes(GetType(NoSuchElementException))
                 wait.Until(Function()
                                Try
-                                   'driver.ExecuteScript("return document.readyState").Equals("complete")
-                                   'driver.FindElement(By.ClassName("shopee-search-item-result__items"))
-                                   If driver.FindElement(By.ClassName("shopee-search-item-result__items")).Displayed Then
+
+                                   If driver.FindElement(By.ClassName("shopee-search-item-result__items")).Displayed AndAlso driver.FindElement(By.ClassName("shopee-mini-page-controller__state")).Displayed Then
+                                       'check all datacards if they contain information
                                        Return True
                                    Else
                                        Return False
@@ -128,8 +139,22 @@ tryagain:
                     Dim newHeight = driver.ExecuteScript("return window.pageYOffset;")
                     If newHeight = currentYPosition Then 'This means the browser reached the max height.
                         Console.WriteLine("Reached bottom of the page.")
-                        lblstatus.Text = "Data rendered from Shopee."
-                        Exit While
+                        lblstatus.Text = "Checking if data rendered from Shopee is loaded."
+
+                        'check all cards here.
+                        Dim checkHTML = driver.PageSource
+                        Dim checkHTMLDocument As New HtmlDocument
+                        checkHTMLDocument.LoadHtml(checkHTML)
+                        '_7DTxhh +ZCtwF are classes without images.
+                        Dim defaultCardImage = checkHTMLDocument.DocumentNode.SelectNodes("//img[(@class='_7DTxhh +ZCtwF')]")
+                        If defaultCardImage Is Nothing Then
+                            Exit While
+                        Else
+                            'there are still some elements that didn't finish loading.
+                            'scroll back to top and re-run the program.
+                            lblstatus.Text = "Some elements didn't load. (ㆆ_ㆆ) Retrying!"
+                            driver.ExecuteAsyncScript("window.scrollTo(0,0);")
+                        End If
                     End If
                 End While
                 lblstatus.Text = "Waiting for everything to load."
@@ -166,6 +191,14 @@ tryagain:
 
                 'Select the search result node.
                 Dim searchResultsNode As HtmlNode = htmlBody.SelectSingleNode(".//div[(@class='row shopee-search-item-result__items')]")
+                Dim miniPageController As HtmlNode = htmlBody.SelectSingleNode(".//div[@class='shopee-mini-page-controller__state']")
+                currentPage = miniPageController.SelectSingleNode(".//span[@class = 'shopee-mini-page-controller__current']").InnerText
+                totalPage = miniPageController.SelectSingleNode(".//span[@class = 'shopee-mini-page-controller__total']").InnerText
+
+
+
+
+
                 'Save the search result in an HTMLNodeCollection.
                 progressBar.Maximum = searchResultsNode.ChildNodes.Count
                 Dim listOfImageUrl As New List(Of Object)
@@ -250,15 +283,23 @@ tryagain:
                                                  End Sub)
                 Await Task.WhenAll(resultCollection)
                 Console.WriteLine(resultCollection)
-                Dim myBitmapList As New List(Of Object)
+
+                myBitmapList.Clear()
                 For Each myTask As Task(Of Object) In resultCollection
                     Dim myByte As Byte() = myTask.Result(0)
                     'currentObject(0) is the container for the bytes
                     'currentObject(1) is the container for the item name
+                    If myByte IsNot Nothing Then
+                        'Dim myStream As MemoryStream = New MemoryStream(myByte.ToArray)
+                        'Dim tImage = New Bitmap(Bitmap.FromStream(myStream), 120, 120)
+                        'myBitmapList.Add({tImage, myTask.Result(1)})
 
-                    Dim myStream As MemoryStream = New MemoryStream(myByte.ToArray)
-                    Dim tImage = New Bitmap(Bitmap.FromStream(myStream), 120, 120)
-                    myBitmapList.Add({tImage, myTask.Result(1)})
+                        Using myStream As New MemoryStream(myByte.ToArray)
+                            myBitmapList.Add({New Bitmap(Bitmap.FromStream(myStream), 120, 120), myTask.Result(1)})
+                        End Using
+                    Else
+                        'myBitmapList.Add({Nothing, myTask.Result(1)})
+                    End If
                 Next
 
                 For Each rows As DataRow In resultsTable.Rows
@@ -273,16 +314,11 @@ tryagain:
                 progressBar.Visible = False
                 lblstatus.Text = "Fetch complete!"
             Catch ex As Exception
-                'Dim result = MessageBox.Show($"Error occured when parsing results.{Environment.NewLine}{ex.Message}", "Oops, something went wrong!", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error)
-                'If result = DialogResult.Retry Then
-                '    Application.Restart()
-                'Else
-                '    Me.Close()
-                'End If
-
-                Console.WriteLine(ex.GetType())
+                Console.WriteLine(ex.GetType().ToString + ex.Message)
+                GoTo tryagain
             End Try
             'END OF PARSE
+            setAndEnableShopeePageController()
             Return resultsTable
         Else
             MessageBox.Show("Max retries time out error occured! Program is restarting.", "Oops, something went wrong!", MessageBoxButtons.OK, MessageBoxIcon.Error)
@@ -290,7 +326,22 @@ tryagain:
             Exit Function
         End If
     End Function
+    Public Sub setAndEnableShopeePageController()
+        If currentPage = 1 Then
+            btnPrevious.Enabled = False
+            btnNext.Enabled = True
+        ElseIf currentPage = totalPage Then
+            btnPrevious.Enabled = True
+            btnNext.Enabled = False
+        Else
+            btnPrevious.Enabled = True
+            btnNext.Enabled = True
+        End If
 
+        lblCurrPage.Text = currentPage
+        lblNumberOfPages.Text = "/" + totalPage.ToString
+        shopeeNavPanel.Show()
+    End Sub
     Private Sub disableControls()
         For Each c As Control In Me.Controls
             If c.Name <> cbSources.Name Then
@@ -666,14 +717,13 @@ tryagain:
             Await searchOcto(tbKeyword.Text, cbCategories.Text, cbSubcategories.Text)
         ElseIf selectedSource = "Shopee" Then
             disableControls()
-            Dim resultsDataTable = Await SearchShopee(tbKeyword.Text, dgvOctopartResults, ToolStripProgressBar1, statusLabel)
+            Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel, tbKeyword.Text)
             If resultsDataTable Is Nothing Then
                 enableControls()
                 tbKeyword.Clear()
                 tbKeyword.Select()
                 Exit Sub
                 'do nothing if sub is empty.
-
             Else
                 dgvOctopartResults.DataSource = resultsDataTable
                 dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
@@ -1217,6 +1267,77 @@ tryagain:
             groupFilters.Visible = False
             btnSearch.Enabled = True
             btnSearch.Location = New Point(72, 144)
+        End If
+    End Sub
+
+    Private Async Sub btnNext_Click(sender As Object, e As EventArgs) Handles btnNext.Click
+        disableControls()
+        Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel)
+        If resultsDataTable Is Nothing Then
+            enableControls()
+            tbKeyword.Clear()
+            tbKeyword.Select()
+            Exit Sub
+            'do nothing if sub is empty.
+        Else
+            dgvOctopartResults.DataSource = resultsDataTable
+            dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+            dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+            dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+            Dim btn As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btn)
+            btn.HeaderText = "Item Links"
+            btn.Text = "View on browser"
+            btn.Name = "btnLink"
+            btn.UseColumnTextForButtonValue = True
+
+            Dim btnAddtoPR As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btnAddtoPR)
+            btnAddtoPR.HeaderText = "Add to PR"
+            btnAddtoPR.Text = "Add to Purchase Request"
+            btnAddtoPR.Name = "btnAddToPR"
+            btnAddtoPR.UseColumnTextForButtonValue = True
+            'hide product page
+            dgvOctopartResults.Columns("Product Page").Visible = False
+            dgvOctopartResults.Columns("Image URL").Visible = False
+            dgvOctopartResults.AllowUserToAddRows = False
+            enableControls()
+        End If
+    End Sub
+
+    Private Async Sub btnPrevious_Click(sender As Object, e As EventArgs) Handles btnPrevious.Click
+        disableControls()
+        currentPage -= 1
+        Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel)
+        If resultsDataTable Is Nothing Then
+            enableControls()
+            tbKeyword.Clear()
+            tbKeyword.Select()
+            Exit Sub
+            'do nothing if sub is empty.
+        Else
+            dgvOctopartResults.DataSource = resultsDataTable
+            dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+            dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+            dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+            Dim btn As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btn)
+            btn.HeaderText = "Item Links"
+            btn.Text = "View on browser"
+            btn.Name = "btnLink"
+            btn.UseColumnTextForButtonValue = True
+
+            Dim btnAddtoPR As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btnAddtoPR)
+            btnAddtoPR.HeaderText = "Add to PR"
+            btnAddtoPR.Text = "Add to Purchase Request"
+            btnAddtoPR.Name = "btnAddToPR"
+            btnAddtoPR.UseColumnTextForButtonValue = True
+            'hide product page
+            dgvOctopartResults.Columns("Product Page").Visible = False
+            dgvOctopartResults.Columns("Image URL").Visible = False
+            dgvOctopartResults.AllowUserToAddRows = False
+            enableControls()
         End If
     End Sub
 End Class
