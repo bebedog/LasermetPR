@@ -75,11 +75,22 @@ Public Class viewSellers
         OctoPart_API.dgvBuildPR.ReadOnly = False
 
         For Each c As DataGridViewColumn In OctoPart_API.dgvBuildPR.Columns
-            If c.Name <> "Quantity" Then
+            If c.Name <> "Quantity" Or c.Name <> "Unit Price" Then
                 c.ReadOnly = True
             End If
 
             OctoPart_API.dgvBuildPR.Columns("Quantity").ReadOnly = False
+            If IsNumeric(newRow.ItemArray(8).ToString.Split(" ")(1)) Then
+                OctoPart_API.dgvBuildPR.Columns("Unit Price").ReadOnly = True
+            Else
+                OctoPart_API.dgvBuildPR.Columns("Unit Price").ReadOnly = False
+                OctoPart_API.dgvBuildPR.Columns("Unit Price").HeaderCell.Style.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
+                OctoPart_API.dgvBuildPR.Columns("Unit Price").HeaderCell.Style.BackColor = Drawing.Color.FromArgb(228, 229, 224)
+
+                OctoPart_API.dgvBuildPR.Columns("Unit Price").DefaultCellStyle.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
+                OctoPart_API.dgvBuildPR.Columns("Unit Price").DefaultCellStyle.BackColor = Drawing.Color.FromArgb(228, 229, 224)
+            End If
+
 
         Next
 
