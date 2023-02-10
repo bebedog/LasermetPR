@@ -37,7 +37,6 @@ Partial Class OctoPart_API
         Me.StatusStrip1 = New System.Windows.Forms.StatusStrip()
         Me.statusLabel = New System.Windows.Forms.ToolStripStatusLabel()
         Me.ToolStripProgressBar1 = New System.Windows.Forms.ToolStripProgressBar()
-        Me.btnGetTotal = New System.Windows.Forms.Button()
         Me.btnExportPR = New System.Windows.Forms.Button()
         Me.dlgSaveFile = New System.Windows.Forms.SaveFileDialog()
         Me.cbSources = New System.Windows.Forms.ComboBox()
