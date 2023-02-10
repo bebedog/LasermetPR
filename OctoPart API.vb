@@ -21,8 +21,8 @@ Public Class OctoPart_API
     Public currentPage As Integer
     Public totalPage As Integer
     Public currentItemToSearch As String
-
     Public myBitmapList As New List(Of Object)
+    Dim cellValid As Boolean
     Public Async Function DownloadImage(URLandID As Object) As Task(Of Object)
         If URLandID(0) = "" Then
             Console.WriteLine($"Failed to download image from URL: {URLandID(0)}")
@@ -367,6 +367,8 @@ tryagain:
         btnExportPR.Enabled = False
         statusLabel.Text = "Please select a source"
         Me.KeyPreview = True
+
+        buildPRdgv()
     End Sub
     Private Async Sub populateCategories()
 
@@ -394,7 +396,10 @@ tryagain:
 
             MessageBox.Show(errorMsg, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
             If DialogResult.OK Then
-                Application.Exit()
+                cbSources.SelectedItem = "Shopee"
+                selectedSource = "Shopee"
+                labelKeyword.Enabled = True
+                tbKeyword.Enabled = True
                 Exit Sub
             End If
 
@@ -518,7 +523,7 @@ tryagain:
             Dim errorMsg As String = errorObj.errors(0).message
             MessageBox.Show(errorMsg, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
             If DialogResult.OK Then
-                Application.Exit()
+                Application.Restart()
                 Exit Function
             End If
         Else
@@ -661,17 +666,23 @@ tryagain:
     End Function
     Private Sub buildPRdgv()
 
+        prTable.Columns.Add("MPN", GetType(String))
+        prTable.Columns.Add("Short Description", GetType(String))
+        prTable.Columns.Add("Manufacturer", GetType(String))
+        prTable.Columns.Add("Distributor", GetType(String))
+        prTable.Columns.Add("MOQ", GetType(String))
+        prTable.Columns.Add("Prices", GetType(String))
+        prTable.Columns.Add("Product Page", GetType(String))
+        prTable.Columns.Add("Quantity", GetType(Integer))
+        prTable.Columns.Add("Unit Price", GetType(String))
+        prTable.Columns.Add("Total Price", GetType(String))
+
         dgvBuildPR.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
 
         Dim deleteBtn As New DataGridViewButtonColumn
         deleteBtn.HeaderText = "Remove Item"
         deleteBtn.Text = "Remove Item"
         deleteBtn.UseColumnTextForButtonValue = True
-
-        Dim updateBtn As New DataGridViewButtonColumn
-        updateBtn.HeaderText = "Update Item"
-        updateBtn.Text = "Update Item"
-        updateBtn.UseColumnTextForButtonValue = True
 
         dgvBuildPR.DataSource = prTable
         dgvBuildPR.Columns.Add(deleteBtn)
@@ -754,6 +765,7 @@ tryagain:
     End Sub
 
     Private Sub dgvOctopartResults_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvOctopartResults.CellContentClick
+        Dim url As String
         Dim sendergrid = DirectCast(sender, DataGridView)
         If selectedSource = "Octopart" Then
             If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
@@ -762,8 +774,20 @@ tryagain:
                 viewSellers.shortDesc = sendergrid.CurrentRow.Cells(1).Value.ToString()
                 viewSellers.Manufacturer = sendergrid.CurrentRow.Cells(2).Value.ToString()
             End If
-        ElseIf selectedSource = "Octopart" Then
-            MessageBox.Show("No")
+        ElseIf selectedSource = "Shopee" Then
+            If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
+                If e.ColumnIndex = 6 Then
+
+                    url = sendergrid.CurrentRow.Cells(3).Value.ToString
+                    Dim openURL As New ProcessStartInfo()
+                    openURL.Arguments = url
+                    openURL.UseShellExecute = True
+                    openURL.FileName = "msedge.exe"
+                    Process.Start(openURL)
+                ElseIf e.ColumnIndex = 7 Then
+                    viewSellers.buildprTable(selectedSource, "N/A", sendergrid.CurrentRow.Cells(0).Value.ToString, "N/A", "Shopee", sendergrid.CurrentRow.Cells(3).Value.ToString, 1, dgvBuildPR, sendergrid.CurrentRow.Cells(4).Value.ToString, "N/A")
+                End If
+            End If
         End If
     End Sub
 
@@ -1027,7 +1051,7 @@ tryagain:
                 End If
 
                 Try
-                    If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString) Then
+                    If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value.ToString) Then
                         If dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString >= CInt(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value) Then
                             newTotalPrice = $"PHP {unitPrice * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
                             dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
@@ -1035,10 +1059,9 @@ tryagain:
                             MessageBox.Show($"Please enter a value equal to or above MOQ: {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value.ToString}")
                             dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = dgvBuildPR.Rows(e.RowIndex).Cells(4).Value
                         End If
-
                     Else
-                        MessageBox.Show("Please enter a valid numeric value.")
-                        dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+                        newTotalPrice = $"PHP {unitPrice * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                        dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
                     End If
                 Catch ex As Exception
                     MessageBox.Show("Please enter a valid numeric value.")
@@ -1048,7 +1071,7 @@ tryagain:
                 totalPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(9).Value.ToString.Split(" ")(1))
                 unitPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Split(" ")(1))
                 Try
-                    If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString) Then
+                    If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value.ToString) Then
                         If dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString >= CInt(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value) Then
                             newTotalPrice = $"PHP {unitPrice * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
                             dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
@@ -1056,14 +1079,12 @@ tryagain:
                             MessageBox.Show($"Please enter a value equal to or above MOQ: {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value.ToString}")
                             dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = dgvBuildPR.Rows(e.RowIndex).Cells(4).Value
                         End If
-
                     Else
-                        MessageBox.Show("Please enter a valid numeric value.")
-                        dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+                        newTotalPrice = $"PHP {unitPrice * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                        dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
                     End If
                 Catch ex As Exception
                     MessageBox.Show("Please enter a valid numeric value.")
-                    dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
                 End Try
             Else
                 MessageBox.Show("Please check product page for price and update Unit Price column manually")
@@ -1073,16 +1094,8 @@ tryagain:
             End If
         ElseIf e.ColumnIndex = 8 Then
             Try
-
-                If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString) Or IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Split(" ")(1)) Then
-                    newUnitPrice = $"PHP {dgvBuildPR.Rows(e.RowIndex).Cells(8).Value}"
-                    dgvBuildPR.Rows(e.RowIndex).Cells(8).Value = newUnitPrice
-                    newTotalPrice = $"PHP {newUnitPrice.ToString.Split(" ")(1)}"
-                    dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
-                Else
-                    MessageBox.Show("Please enter a valid numeric value")
-                End If
-
+                newTotalPrice = $"PHP {dgvBuildPR.Rows(e.RowIndex).Cells(8).Value * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
             Catch ex As Exception
 
             End Try
@@ -1120,22 +1133,22 @@ tryagain:
             End If
         ElseIf e.ColumnIndex = 8 Then
             dgvBuildPR.Rows(e.RowIndex).ErrorText = ""
+            Dim priceRange As New List(Of Double)
+            If dgvBuildPR.Rows(e.RowIndex).Cells(5).Value.ToString.Contains("-") Then
+                For Each i In dgvBuildPR.Rows(e.RowIndex).Cells(5).Value.ToString.Split("-").ToArray
+                    priceRange.Add(CDbl(i.Replace("₱", "").Trim))
+                Next
+            End If
             If IsNumeric(e.FormattedValue) = False Then
-                Try
-                    If IsNumeric(e.FormattedValue.ToString.Split(" ")(1)) = False Then
-                        e.Cancel = True
-                        MessageBox.Show("Please enter a valid numeric value")
-                    Else
-                        dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = $"PHP {e.FormattedValue.ToString.Split(" ")(1) * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
-                    End If
-                Catch ex As Exception
+                If IsNumeric(e.FormattedValue.ToString.Split(" ")(1)) = False Then
+                    e.Cancel = True
                     MessageBox.Show($"Please recheck your input for {dgvBuildPR.Columns(e.ColumnIndex).Name}", "Error reading input", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                End Try
-
-            ElseIf IsNumeric(e.FormattedValue) Then
-                dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = $"PHP {e.FormattedValue * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
-            ElseIf IsNumeric(e.FormattedValue.ToString.Split(" ")(1)) Then
-                dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = $"PHP {e.FormattedValue.ToString.Split(" ")(1) * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                End If
+            Else
+                If e.FormattedValue < priceRange.Min Or e.FormattedValue > priceRange.Max Then
+                    e.Cancel = True
+                    MessageBox.Show("The price you entered is outside the given range", "Price is outside of range", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                End If
             End If
         End If
 
@@ -1150,8 +1163,9 @@ tryagain:
             Return
         End If
 
+        Dim filepath As String = filename.Replace(".xlsx", "_temp.xlsx")
+        My.Computer.FileSystem.WriteAllBytes(filepath, My.Resources.FORM_001_Purchase_Request_Form, True)
         xlApp.DisplayAlerts = False
-        Dim filepath As String = "C:\Users\PC\Documents\FORM-001_Purchase Request Form"
         Dim xlWorkBook As Excel.Workbook = xlApp.Workbooks.Open(filepath, 0, False, 5, "", "", False, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "", True, False, 0, True, False, False)
         Dim worksheets As Excel.Sheets = xlWorkBook.Worksheets
 
@@ -1189,6 +1203,7 @@ tryagain:
             releaseObject(xlWorkBook)
             releaseObject(xlApp)
             MessageBox.Show($"File: [{filename}] succesfully saved.")
+            My.Computer.FileSystem.DeleteFile(filepath)
             Exit Sub
         Catch ex As Exception
             Dim sheet1 As Excel.Worksheet = CType(xlWorkBook.Sheets("Sheet1"), Excel.Worksheet)
@@ -1225,6 +1240,7 @@ tryagain:
             releaseObject(xlWorkBook)
             releaseObject(xlApp)
             MessageBox.Show($"File: [{filename}] succesfully saved.")
+            My.Computer.FileSystem.DeleteFile(filepath)
             Exit Sub
         End Try
 
@@ -1243,8 +1259,6 @@ tryagain:
 
     Private Sub cbSources_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cbSources.SelectedIndexChanged
         If cbSources.SelectedItem = "Octopart" Then
-            prTable.Columns.Clear()
-            dgvBuildPR.Columns.Clear()
             groupFilters.Visible = True
             btnSearch.Location = New Point(72, 296)
             statusLabel.Text = "Currently fetching data from authorized distributors... ノ( ゜-゜ノ)"
@@ -1252,17 +1266,6 @@ tryagain:
                 disableControls()
                 populateCategories()
             End If
-            prTable.Columns.Add("MPN", GetType(String))
-            prTable.Columns.Add("Short Description", GetType(String))
-            prTable.Columns.Add("Manufacturer", GetType(String))
-            prTable.Columns.Add("Distributor", GetType(String))
-            prTable.Columns.Add("MOQ", GetType(String))
-            prTable.Columns.Add("Prices", GetType(String))
-            prTable.Columns.Add("Product Page", GetType(String))
-            prTable.Columns.Add("Quantity", GetType(Integer))
-            prTable.Columns.Add("Unit Price", GetType(String))
-            prTable.Columns.Add("Total Price", GetType(String))
-            buildPRdgv()
         ElseIf cbSources.SelectedItem = "Shopee" Then
             groupFilters.Visible = False
             btnSearch.Enabled = True

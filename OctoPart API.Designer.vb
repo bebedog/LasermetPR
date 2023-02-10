@@ -44,8 +44,8 @@ Partial Class OctoPart_API
         Me.lblCurrPage = New System.Windows.Forms.Label()
         Me.lblNumberOfPages = New System.Windows.Forms.Label()
         Me.shopeeNavPanel = New System.Windows.Forms.GroupBox()
-        Me.btnPrevious = New System.Windows.Forms.Button()
         Me.btnNext = New System.Windows.Forms.Button()
+        Me.btnPrevious = New System.Windows.Forms.Button()
         Me.labelPRStat = New System.Windows.Forms.Label()
         CType(Me.dgvOctopartResults, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.dgvBuildPR, System.ComponentModel.ISupportInitialize).BeginInit()
@@ -83,9 +83,9 @@ Partial Class OctoPart_API
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.dgvBuildPR.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells
         Me.dgvBuildPR.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
-        Me.dgvBuildPR.Location = New System.Drawing.Point(280, 493)
+        Me.dgvBuildPR.Location = New System.Drawing.Point(280, 456)
         Me.dgvBuildPR.Name = "dgvBuildPR"
-        Me.dgvBuildPR.Size = New System.Drawing.Size(756, 196)
+        Me.dgvBuildPR.Size = New System.Drawing.Size(756, 233)
         Me.dgvBuildPR.TabIndex = 1
         '
         'labelOctopartResults
@@ -215,14 +215,6 @@ Partial Class OctoPart_API
         Me.ToolStripProgressBar1.Size = New System.Drawing.Size(100, 16)
         Me.ToolStripProgressBar1.Visible = False
         '
-        'btnGetTotal
-        '
-        Me.ToolStripProgressBar1.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right
-        Me.ToolStripProgressBar1.Name = "ToolStripProgressBar1"
-        Me.ToolStripProgressBar1.RightToLeft = System.Windows.Forms.RightToLeft.Yes
-        Me.ToolStripProgressBar1.Size = New System.Drawing.Size(100, 16)
-        Me.ToolStripProgressBar1.Visible = False
-        '
         'btnExportPR
         '
         Me.btnExportPR.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
@@ -292,6 +284,15 @@ Partial Class OctoPart_API
         Me.shopeeNavPanel.Text = "Shopee Page Control"
         Me.shopeeNavPanel.Visible = False
         '
+        'btnNext
+        '
+        Me.btnNext.Location = New System.Drawing.Point(108, 16)
+        Me.btnNext.Name = "btnNext"
+        Me.btnNext.Size = New System.Drawing.Size(28, 23)
+        Me.btnNext.TabIndex = 28
+        Me.btnNext.Text = ">"
+        Me.btnNext.UseVisualStyleBackColor = True
+        '
         'btnPrevious
         '
         Me.btnPrevious.Enabled = False
@@ -302,14 +303,6 @@ Partial Class OctoPart_API
         Me.btnPrevious.Text = "<"
         Me.btnPrevious.UseVisualStyleBackColor = True
         '
-        'btnNext
-        '
-        Me.btnNext.Location = New System.Drawing.Point(108, 16)
-        Me.btnNext.Name = "btnNext"
-        Me.btnNext.Size = New System.Drawing.Size(28, 23)
-        Me.btnNext.TabIndex = 28
-        Me.btnNext.Text = ">"
-        Me.btnNext.UseVisualStyleBackColor = True
         'labelPRStat
         '
         Me.labelPRStat.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)

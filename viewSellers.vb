@@ -13,63 +13,92 @@ Public Class viewSellers
 
     End Sub
 
-    Private Sub buildprTable(ByVal _mpn As String, ByVal desc As String, ByVal mfr As String, ByVal seller As String, ByVal productURL As String, ByVal qty As Integer, ByVal dgv As DataGridView, ByVal prices As String, ByVal moq As String)
+    Public Sub buildprTable(ByVal source As String, ByVal _mpn As String, ByVal desc As String, ByVal mfr As String, ByVal seller As String, ByVal productURL As String, ByVal qty As Integer, ByVal dgv As DataGridView, ByVal prices As String, ByVal moq As String)
 
         dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells.AllCells
         dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
 
         Dim newRow As DataRow = OctoPart_API.prTable.NewRow()
         Dim unitPriceCurr As String
-        Dim unitPrice As Double
+        Dim unitPrice As String
         Dim row As Integer = 0
 
-        Dim pricesArray As New List(Of List(Of String))
+        If source = "Octopart" Then
+            Dim pricesArray As New List(Of List(Of String))
 
-        If String.IsNullOrEmpty(prices) Or String.IsNullOrWhiteSpace(prices) Or prices = "N/A" Then
-            prices = "Please check product page"
-        Else
-            For Each p In prices.Split(Environment.NewLine)
-                Dim varPrice As String = p.Replace(" || ", "|")
-                pricesArray.Add(New List(Of String))
-                pricesArray(row).Add(varPrice.Split("|")(0).Trim)
-                pricesArray(row).Add(varPrice.Split("|")(1).Replace(" pcs. min.", "").Trim)
-                row = row + 1
+            If String.IsNullOrEmpty(prices) Or String.IsNullOrWhiteSpace(prices) Or prices = "N/A" Then
+                prices = "Please check product page"
+            Else
+                For Each p In prices.Split(Environment.NewLine)
+                    Dim varPrice As String = p.Replace(" || ", "|")
+                    pricesArray.Add(New List(Of String))
+                    pricesArray(row).Add(varPrice.Split("|")(0).Trim)
+                    pricesArray(row).Add(varPrice.Split("|")(1).Replace(" pcs. min.", "").Trim)
+                    row = row + 1
+                Next
+            End If
+
+            For Each l As List(Of String) In pricesArray
+                If qty >= l(1) Then
+                    unitPrice = l(0).Split(" ")(1)
+                    unitPriceCurr = l(0).Split(" ")(0)
+                End If
             Next
+
+
+
+            With newRow
+                .Item(0) = _mpn
+                .Item(1) = desc
+                .Item(2) = mfr
+                .Item(3) = seller
+                .Item(4) = moq
+                .Item(5) = prices
+                .Item(6) = productURL
+                .Item(7) = qty
+                If prices = "Please check product page" Then
+                    .Item(8) = "Price information not found. Please check product page"
+                Else
+                    .Item(8) = $"{unitPriceCurr} {Math.Round(CDbl(unitPrice), 3)}"
+                End If
+                If prices = "Please check product page" Then
+                    .Item(9) = .Item(7)
+                Else
+                    .Item(9) = $"{unitPriceCurr} {Math.Round(CDbl(unitPrice) * qty, 2)}"
+                End If
+            End With
+        ElseIf source = "Shopee" Then
+
+            unitPriceCurr = "PHP"
+
+            With newRow
+                .Item(0) = _mpn
+                .Item(1) = desc
+                .Item(2) = mfr
+                .Item(3) = seller
+                .Item(4) = moq
+                .Item(5) = prices
+                .Item(6) = productURL
+                .Item(7) = qty
+                If prices.Contains(" - ") Then
+                    .Item(8) = "Please check product page"
+                Else
+                    unitPrice = prices.Replace("₱", "").Trim
+                    .Item(8) = $"{unitPriceCurr} {Math.Round(CDbl(unitPrice), 3)}"
+                End If
+                If prices.Contains(" - ") Then
+                    .Item(9) = .Item(7)
+                Else
+                    unitPrice = prices.Replace("₱", "").Trim
+                    .Item(9) = $"{unitPriceCurr} {Math.Round(CDbl(unitPrice) * qty, 2)}"
+                End If
+            End With
         End If
 
-        For Each l As List(Of String) In pricesArray
-            If qty >= l(1) Then
-                unitPrice = l(0).Split(" ")(1)
-                unitPriceCurr = l(0).Split(" ")(0)
-            End If
-        Next
 
-
-
-        With newRow
-            .Item(0) = _mpn
-            .Item(1) = desc
-            .Item(2) = mfr
-            .Item(3) = seller
-            .Item(4) = moq
-            .Item(5) = prices
-            .Item(6) = productURL
-            .Item(7) = qty
-            If prices = "Please check product page" Then
-                .Item(8) = "Price information not found. Please check product page"
-            Else
-                .Item(8) = $"{unitPriceCurr} {Math.Round(unitPrice, 3)}"
-            End If
-            If prices = "Please check product page" Then
-                .Item(9) = .Item(7)
-            Else
-                .Item(9) = $"{unitPriceCurr} {Math.Round(unitPrice * qty, 2)}"
-            End If
-
-
-        End With
 
         OctoPart_API.prTable.Rows.InsertAt(newRow, 1)
+        OctoPart_API.dgvBuildPR.DataSource = OctoPart_API.prTable
         OctoPart_API.dgvBuildPR.Enabled = True
         OctoPart_API.btnExportPR.Enabled = True
         OctoPart_API.dgvBuildPR.ReadOnly = False
@@ -78,23 +107,22 @@ Public Class viewSellers
             If c.Name <> "Quantity" Or c.Name <> "Unit Price" Then
                 c.ReadOnly = True
             End If
-
-            OctoPart_API.dgvBuildPR.Columns("Quantity").ReadOnly = False
-            If IsNumeric(newRow.ItemArray(8).ToString.Split(" ")(1)) Then
-                OctoPart_API.dgvBuildPR.Columns("Unit Price").ReadOnly = True
-            Else
-                OctoPart_API.dgvBuildPR.Columns("Unit Price").ReadOnly = False
-                OctoPart_API.dgvBuildPR.Columns("Unit Price").HeaderCell.Style.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
-                OctoPart_API.dgvBuildPR.Columns("Unit Price").HeaderCell.Style.BackColor = Drawing.Color.FromArgb(228, 229, 224)
-
-                OctoPart_API.dgvBuildPR.Columns("Unit Price").DefaultCellStyle.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
-                OctoPart_API.dgvBuildPR.Columns("Unit Price").DefaultCellStyle.BackColor = Drawing.Color.FromArgb(228, 229, 224)
-            End If
-
-
         Next
 
-        OctoPart_API.dgvBuildPR.EnableHeadersVisualStyles = False
+
+        OctoPart_API.dgvBuildPR.Columns("Quantity").ReadOnly = False
+        If IsNumeric(newRow.ItemArray(8).ToString.Split(" ")(1)) Then
+            OctoPart_API.dgvBuildPR.Columns("Unit Price").ReadOnly = True
+        Else
+            OctoPart_API.dgvBuildPR.Columns("Unit Price").ReadOnly = False
+            OctoPart_API.dgvBuildPR.Columns("Unit Price").HeaderCell.Style.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
+            OctoPart_API.dgvBuildPR.Columns("Unit Price").HeaderCell.Style.BackColor = Drawing.Color.FromArgb(228, 229, 224)
+
+            OctoPart_API.dgvBuildPR.Columns("Unit Price").DefaultCellStyle.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
+            OctoPart_API.dgvBuildPR.Columns("Unit Price").DefaultCellStyle.BackColor = Drawing.Color.FromArgb(228, 229, 224)
+        End If
+
+            OctoPart_API.dgvBuildPR.EnableHeadersVisualStyles = False
 
         OctoPart_API.dgvBuildPR.Columns("Quantity").HeaderCell.Style.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
         OctoPart_API.dgvBuildPR.Columns("Quantity").HeaderCell.Style.BackColor = Drawing.Color.FromArgb(228, 229, 224)
@@ -134,7 +162,7 @@ Public Class viewSellers
                             companyName = sendergrid.CurrentRow.Cells(4).Value
                             productLink = sendergrid.CurrentRow.Cells(6).Value
                             If moq <= sendergrid.CurrentRow.Cells(2).Value Then
-                                buildprTable(MPN, shortDesc, Manufacturer, companyName, productLink, qty, OctoPart_API.dgvBuildPR, sendergrid.CurrentRow.Cells(9).Value, moq)
+                                buildprTable("Octopart", MPN, shortDesc, Manufacturer, companyName, productLink, qty, OctoPart_API.dgvBuildPR, sendergrid.CurrentRow.Cells(9).Value, moq)
 
                                 Dim totalPriceList As New List(Of Double)
                                 Dim totalQtyList As New List(Of Integer)
@@ -159,7 +187,7 @@ Public Class viewSellers
                             qty = sendergrid.CurrentRow.Cells(2).Value
                             companyName = sendergrid.CurrentRow.Cells(4).Value
                             productLink = sendergrid.CurrentRow.Cells(6).Value
-                            buildprTable(MPN, shortDesc, Manufacturer, companyName, productLink, qty, OctoPart_API.dgvBuildPR, sendergrid.CurrentRow.Cells(9).Value, moq)
+                            buildprTable("Octopart", MPN, shortDesc, Manufacturer, companyName, productLink, qty, OctoPart_API.dgvBuildPR, sendergrid.CurrentRow.Cells(9).Value, moq)
                             Dim totalPriceList As New List(Of Double)
                             Dim totalQtyList As New List(Of Integer)
 

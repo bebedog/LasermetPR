@@ -276,6 +276,7 @@
     </None>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <None Include="Resources\FORM-001_Purchase Request Form.xlsx" />
     <None Include="Templates\FORM-001_Purchase Request Form.xlsx" />
   </ItemGroup>
   <ItemGroup>
