@@ -24,41 +24,6 @@ Public Class OctoPart_API
     Public currentItemToSearch As String
 
     Public myBitmapList As New List(Of Object)
-
-
-    'Public Async Function sendAPIRequest(ByVal query As String) As Task(Of Object)
-
-    '    Dim options = New RestClientOptions("http://octopart.com/api/v3")
-    '    options.ThrowOnAnyError = True
-    '    options.MaxTimeout = queryTimeOut
-    '    Dim client = New RestClient(options)
-    '    Dim request = New RestRequest()
-    '    request.Timeout = queryTimeOut
-    '    request.Method = Method.Post
-    '    request.AddHeader("Authorization", token)
-    '    request.AddQueryParameter("query", query)
-    '    Dim response = New RestResponse
-    '    response = Await client.PostAsync(request)
-    '    'If response.IsSuccessStatusCode = True Then
-    '    '    Return response.Content
-    '    'Else
-    '    '    Return False
-    '    'End If
-    '    If response.IsSuccessStatusCode Then
-    '        'response has a statuscode of 200
-    '        'but it might have a parse error, which still is status 200.
-    '        If response.Content.Contains("error") Or response.Content.Contains("error_message") Or response.Content.Contains("errors") Then
-    '            'response has a status code 200, but has a monday.com error.
-    '            Return {"error", response.Content}
-    '        Else
-    '            'response has a status code 200, with readable results.
-    '            Return {"success", response.Content}
-    '        End If
-    '    Else
-    '        Throw New System.Exception("An error has occured at function: SendMondayRequestVersion2")
-    '    End If
-
-    'End Function
     Public Async Function DownloadImage(URLandID As Object) As Task(Of Object)
         If URLandID(0) = "" Then
             Console.WriteLine($"Failed to download image from URL: {URLandID(0)}")
@@ -84,12 +49,8 @@ Public Class OctoPart_API
                 End If
             End While
         End If
-
-
     End Function
     Private Async Function SearchShopee(ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel, Optional itemToSearch As String = Nothing) As Task(Of DataTable)
-
-
         datagridviewName.Columns.Clear()
         progressBar.Value = 0
         progressBar.Visible = True
@@ -397,10 +358,15 @@ tryagain:
         Next
     End Sub
     Private Sub OctoPart_API_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Console.WriteLine(Application.StartupPath)
         cbSources.Items.Add("Shopee")
         cbSources.Items.Add("Octopart")
         groupFilters.Visible = False
+        groupFilters.Enabled = False
+        btnSearch.Enabled = False
+        btnExportPR.Enabled = False
         statusLabel.Text = "Please select a source"
+        Me.KeyPreview = True
     End Sub
     Private Async Sub populateCategories()
 
@@ -449,10 +415,8 @@ tryagain:
         tbKeyword.Enabled = True
         cbCategories.Items.AddRange(categoriesList.ToArray)
         cbCategories.SelectedIndex = 0
-
         groupFilters.Enabled = True
-        cbCategories.Enabled = True
-        labelCategories.Enabled = True
+        btnSearch.Enabled = True
 
         StatusStrip1.Enabled = True
         statusLabel.Text = "You can start searching by Category or a specific keyword ノ( ゜-゜ノ)"
@@ -501,6 +465,7 @@ tryagain:
                                 inStockOnly: true
                                 country:""PH""
                                 currency: ""PHP""
+                                limit: 1
                               ) {
                                 hits
                                 results {
@@ -681,7 +646,6 @@ tryagain:
         Me.Text = $"{searchResults.Rows.Count} parts found"
 
         enableControls()
-        btnGetTotal.Enabled = False
         btnExportPR.Enabled = False
 
         If searchResults.Rows.Count = 0 Then
@@ -697,23 +661,20 @@ tryagain:
     End Function
     Private Sub buildPRdgv()
 
-        dgvBuildPR.ReadOnly = False
-
-        For Each col As DataGridViewColumn In dgvBuildPR.Columns
-            If col.Name <> "Quantity" Then
-                col.ReadOnly = True
-            End If
-        Next
-
         dgvBuildPR.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
 
-        Dim updateBtn As New DataGridViewButtonColumn
-        updateBtn.HeaderText = "Remove Item"
-        updateBtn.Text = "Remove Item"
-        updateBtn.UseColumnTextForButtonValue = True
-        dgvBuildPR.DataSource = prTable
+        Dim deleteBtn As New DataGridViewButtonColumn
+        deleteBtn.HeaderText = "Remove Item"
+        deleteBtn.Text = "Remove Item"
+        deleteBtn.UseColumnTextForButtonValue = True
 
-        dgvBuildPR.Columns.Add(updateBtn)
+        Dim updateBtn As New DataGridViewButtonColumn
+        updateBtn.HeaderText = "Update Item"
+        updateBtn.Text = "Update Item"
+        updateBtn.UseColumnTextForButtonValue = True
+
+        dgvBuildPR.DataSource = prTable
+        dgvBuildPR.Columns.Add(deleteBtn)
         dgvBuildPR.DefaultCellStyle.WrapMode = DataGridViewTriState.True
 
     End Sub
@@ -745,6 +706,7 @@ tryagain:
             tbKeyword.Enabled = True
             btnSearch.Enabled = True
         End If
+        groupFilters.Enabled = True
 
     End Function
     Private Sub cbCategories_SelectedIndexChanged_1(sender As Object, e As EventArgs) Handles cbCategories.SelectedIndexChanged
@@ -924,24 +886,13 @@ tryagain:
 
     End Sub
 
-    Private Sub btnGetTotal_Click(sender As Object, e As EventArgs) Handles btnGetTotal.Click
-        'Dim totals As New List(Of Double)
-
-        'For i As Integer = 0 To prTable.Rows.Count
-        '    If IsNumeric(prTable.Rows(i).Item(8).ToString.Split(" ")(1)) Then
-        '        Dim total As Double = prTable.Rows(i).Item(8).ToString.Split(" ")(1)
-        '        totals.Add(total)
-        '    End If
-
-        'Next
-
-        'prTable.Rows.Add(Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, $"PHP {totals.Sum}")
-
-        MessageBox.Show("Code under construction", "¯\( ◡ ‿ ◡)/¯")
-    End Sub
-
     Private Sub btnExportPR_Click(sender As Object, e As EventArgs) Handles btnExportPR.Click
 
+        exportPR()
+
+    End Sub
+
+    Private Sub exportPR()
         Dim prTableforExcel As New DataTable
 
         prTableforExcel.Columns.Add("MPN + Description", GetType(String))
@@ -962,12 +913,27 @@ tryagain:
             'Next
 
             If mpnDesc37.Count = 1 Then
-                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(5).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString)
+                If row.Item(8).ToString.Contains("PHP") Then
+                    prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString, row.Item(9).ToString)
+                Else
+                    Dim unitPrice As String = $"PHP {row.Item(8).ToString}"
+                    prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(6).ToString, row.Item(7).ToString, unitPrice, row.Item(9).ToString)
+                End If
+
             Else
-                prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(5).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString)
-                For i As Integer = 1 To mpnDesc37.Count - 1
-                    prTableforExcel.Rows.Add(mpnDesc37(i), Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
-                Next
+                If row.Item(8).ToString.Contains("PHP") Then
+                    prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(6).ToString, row.Item(7).ToString, row.Item(8).ToString, row.Item(9).ToString)
+                    For i As Integer = 1 To mpnDesc37.Count - 1
+                        prTableforExcel.Rows.Add(mpnDesc37(i), Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
+                    Next
+                Else
+                    Dim unitPrice As String = $"PHP {row.Item(8).ToString}"
+                    prTableforExcel.Rows.Add(mpnDesc37(0), row.Item(2).ToString, row.Item(3).ToString, row.Item(6).ToString, row.Item(7).ToString, unitPrice, row.Item(9).ToString)
+                    For i As Integer = 1 To mpnDesc37.Count - 1
+                        prTableforExcel.Rows.Add(mpnDesc37(i), Nothing, Nothing, Nothing, Nothing, Nothing, Nothing)
+                    Next
+                End If
+
             End If
 
         Next
@@ -976,16 +942,16 @@ tryagain:
         dlgSaveFile.FilterIndex = 2
         dlgSaveFile.RestoreDirectory = True
         If dlgSaveFile.ShowDialog() = DialogResult.OK Then
-            'dtTableToCSV(prTableforExcel, dlgSaveFile.FileName)
             addtoExcel(prTableforExcel, dlgSaveFile.FileName)
         End If
+    End Sub
 
-        'If csvSavepath <> "" Or csvSavepath IsNot Nothing Or csvSavepath.Length >= 3 Then
-        '    Dim filename As String = csvSavepath + "\" + DateTime.Now.ToString("yyyyMMdd_HHmmss_") + ("YTD.csv")
-        '    dtTableToCSV(prTableforCSV, filename)
-        'Else
-        '    MessageBox.Show("Please select a folder to save your file in.", "No folder selected", MessageBoxButtons.OK)
-        'End If
+    Private Sub exportPR_keyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles Me.KeyDown
+        If btnExportPR.Enabled = True Then
+            If e.Control AndAlso (e.KeyCode = 83) Then
+                exportPR()
+            End If
+        End If
     End Sub
 
     Public Function SplitInParts(s As String, partLength As Integer) As IEnumerable(Of String)
@@ -1001,7 +967,7 @@ tryagain:
     Private Sub dgvBuildPR_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvBuildPR.CellContentClick
         Dim sendergrid = DirectCast(sender, DataGridView)
         If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
-            If e.ColumnIndex = 9 Then
+            If e.ColumnIndex = 10 Then
 
                 Dim i As Integer = e.RowIndex
                 Dim row As DataGridViewRow
@@ -1018,8 +984,163 @@ tryagain:
                     DirectCast(row.DataBoundItem, DataRowView).Delete()
                 End If
 
+                Dim totalPriceList As New List(Of Double)
+                Dim totalQtyList As New List(Of Integer)
+
+                For Each r As DataRow In prTable.Rows
+                    If r.Item(9).ToString.Contains("PHP") Then
+                        totalPriceList.Add(r.Item(9).ToString.Split(" ")(1))
+                    End If
+                    totalQtyList.Add(r.Item(7))
+                Next
+
+                Dim prTotalCost As String = totalPriceList.Sum.ToString
+                Dim prTotalCount As String = prTable.Rows.Count
+
+                If prTotalCount > 0 Then
+                    labelPRStat.Text = $"[ Total Items: {prTotalCount}, Total Cost: {prTotalCost}, Total Order Qty: {totalQtyList.Sum} ]"
+                Else
+                    labelPRStat.Text = ""
+                End If
+
             End If
         End If
+    End Sub
+
+    Private Sub dgvBuildPR_CellContentChanged(sender As Object, e As DataGridViewCellEventArgs) Handles dgvBuildPR.CellValueChanged
+
+        Dim totalPrice As Double
+        Dim unitPrice As Double
+        Dim newUnitPrice As String
+        Dim newTotalPrice As String
+
+        If e.ColumnIndex = 7 Then
+            If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString) Then
+                If dgvBuildPR.Rows(e.RowIndex).Cells(9).Value.ToString.Contains("PHP") Then
+                    totalPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(9).Value.ToString.Split(" ")(1))
+                Else
+                    totalPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(9).Value)
+                End If
+
+                If dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Contains("PHP") Then
+                    unitPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Split(" ")(1))
+                Else
+                    unitPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value)
+                End If
+
+                Try
+                    If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString) Then
+                        If dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString >= CInt(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value) Then
+                            newTotalPrice = $"PHP {unitPrice * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                            dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
+                        Else
+                            MessageBox.Show($"Please enter a value equal to or above MOQ: {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value.ToString}")
+                            dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = dgvBuildPR.Rows(e.RowIndex).Cells(4).Value
+                        End If
+
+                    Else
+                        MessageBox.Show("Please enter a valid numeric value.")
+                        dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+                    End If
+                Catch ex As Exception
+                    MessageBox.Show("Please enter a valid numeric value.")
+                    dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+                End Try
+            ElseIf IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Split(" ")(1)) Then
+                totalPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(9).Value.ToString.Split(" ")(1))
+                unitPrice = CDbl(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Split(" ")(1))
+                Try
+                    If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString) Then
+                        If dgvBuildPR.Rows(e.RowIndex).Cells(7).Value.ToString >= CInt(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value) Then
+                            newTotalPrice = $"PHP {unitPrice * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                            dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
+                        Else
+                            MessageBox.Show($"Please enter a value equal to or above MOQ: {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value.ToString}")
+                            dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = dgvBuildPR.Rows(e.RowIndex).Cells(4).Value
+                        End If
+
+                    Else
+                        MessageBox.Show("Please enter a valid numeric value.")
+                        dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+                    End If
+                Catch ex As Exception
+                    MessageBox.Show("Please enter a valid numeric value.")
+                    dgvBuildPR.Rows(e.RowIndex).Cells(7).Value = prTable.Rows(e.RowIndex).Item(7)
+                End Try
+            Else
+                MessageBox.Show("Please check product page for price and update Unit Price column manually")
+                dgvBuildPR.Rows(e.RowIndex).Cells(8).ReadOnly = False
+                dgvBuildPR.Rows(e.RowIndex).Cells(8).Style.Font = New Font(FontFamily.GenericSansSerif, 8.75, FontStyle.Bold)
+                dgvBuildPR.Rows(e.RowIndex).Cells(8).Style.BackColor = Drawing.Color.FromArgb(228, 229, 224)
+            End If
+        ElseIf e.ColumnIndex = 8 Then
+            Try
+
+                If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString) Or IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(8).Value.ToString.Split(" ")(1)) Then
+                    newUnitPrice = $"PHP {dgvBuildPR.Rows(e.RowIndex).Cells(8).Value}"
+                    dgvBuildPR.Rows(e.RowIndex).Cells(8).Value = newUnitPrice
+                    newTotalPrice = $"PHP {newUnitPrice.ToString.Split(" ")(1)}"
+                    dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = newTotalPrice
+                Else
+                    MessageBox.Show("Please enter a valid numeric value")
+                End If
+
+            Catch ex As Exception
+
+            End Try
+
+        End If
+
+    End Sub
+
+    Private Sub dgvBuildPR_CellValidating(sender As Object, e As DataGridViewCellValidatingEventArgs) Handles dgvBuildPR.CellValidating
+
+        If e.ColumnIndex = 7 Then
+            dgvBuildPR.Rows(e.RowIndex).ErrorText = ""
+            Dim newQty As Integer
+            If IsNumeric(e.FormattedValue) = True Then
+                If IsNumeric(dgvBuildPR.Rows(e.RowIndex).Cells(4).Value) Then
+                    If e.FormattedValue > 0 Then
+                        If e.FormattedValue < dgvBuildPR.Rows(e.RowIndex).Cells(4).Value Then
+                            e.Cancel = True
+                            dgvBuildPR.Rows(e.RowIndex).ErrorText = $"Please enter a value equal to or above {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value}"
+                            MessageBox.Show($"Please enter a value equal to or above {dgvBuildPR.Rows(e.RowIndex).Cells(4).Value}")
+                        End If
+                    Else
+                        e.Cancel = True
+                        dgvBuildPR.Rows(e.RowIndex).ErrorText = "Please enter a valid numeric value"
+                        MessageBox.Show("Please enter a valid numeric value")
+                    End If
+
+                ElseIf e.FormattedValue <= 0 Then
+                    e.Cancel = True
+                End If
+            Else
+                e.Cancel = True
+                dgvBuildPR.Rows(e.RowIndex).ErrorText = "Please enter a valid numeric value"
+                MessageBox.Show("Please enter a valid numeric value")
+            End If
+        ElseIf e.ColumnIndex = 8 Then
+            dgvBuildPR.Rows(e.RowIndex).ErrorText = ""
+            If IsNumeric(e.FormattedValue) = False Then
+                Try
+                    If IsNumeric(e.FormattedValue.ToString.Split(" ")(1)) = False Then
+                        e.Cancel = True
+                        MessageBox.Show("Please enter a valid numeric value")
+                    Else
+                        dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = $"PHP {e.FormattedValue.ToString.Split(" ")(1) * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+                    End If
+                Catch ex As Exception
+                    MessageBox.Show($"Please recheck your input for {dgvBuildPR.Columns(e.ColumnIndex).Name}", "Error reading input", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                End Try
+
+            ElseIf IsNumeric(e.FormattedValue) Then
+                dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = $"PHP {e.FormattedValue * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+            ElseIf IsNumeric(e.FormattedValue.ToString.Split(" ")(1)) Then
+                dgvBuildPR.Rows(e.RowIndex).Cells(9).Value = $"PHP {e.FormattedValue.ToString.Split(" ")(1) * dgvBuildPR.Rows(e.RowIndex).Cells(7).Value}"
+            End If
+        End If
+
     End Sub
 
     Private Sub addtoExcel(ByVal dt As DataTable, ByVal filename As String)
@@ -1052,6 +1173,16 @@ tryagain:
             Next
 
             xlNewSheet = xlWorkBook.Sheets("PR Form (2)")
+            Dim wsFormatted As Excel.Worksheet = CType(xlWorkBook.Sheets("PR Form (2)"), Excel.Worksheet)
+
+            Select Case dt.Rows.Count
+                Case <= 10
+                    wsFormatted.ExportAsFixedFormat(0, $"{filename.Split(".")(0)}.pdf",,,, 1, 1)
+                Case 10 <= 25
+                    wsFormatted.ExportAsFixedFormat(0, $"{filename.Split(".")(0)}.pdf",,,, 1, 2)
+                Case 25 <= 40
+                    wsFormatted.ExportAsFixedFormat(0, $"{filename.Split(".")(0)}.pdf",,,, 1, 3)
+            End Select
             'xlNewSheet.Select()
             xlWorkBook.SaveAs(filename)
             xlWorkBook.Close()
@@ -1060,6 +1191,7 @@ tryagain:
             releaseObject(xlWorkBook)
             releaseObject(xlApp)
             MessageBox.Show($"File: [{filename}] succesfully saved.")
+            Exit Sub
         Catch ex As Exception
             Dim sheet1 As Excel.Worksheet = CType(xlWorkBook.Sheets("Sheet1"), Excel.Worksheet)
             sheet1.Delete()
@@ -1078,6 +1210,17 @@ tryagain:
                 Next
             Next
             xlWorkBook.SaveAs(filename)
+            Dim wsFormatted As Excel.Worksheet = CType(xlWorkBook.Sheets("PR Form (2)"), Excel.Worksheet)
+
+            Select Case dt.Rows.Count
+                Case <= 10
+                    wsFormatted.ExportAsFixedFormat(0, $"{filename.Split(".")(0)}.pdf",,,, 1, 1)
+                Case <= 25
+                    wsFormatted.ExportAsFixedFormat(0, $"{filename.Split(".")(0)}.pdf",,,, 1, 2)
+                Case <= 40
+                    wsFormatted.ExportAsFixedFormat(0, $"{filename.Split(".")(0)}.pdf",,,, 1, 3)
+            End Select
+
             xlWorkBook.Close()
             releaseObject(xlNewSheet)
             releaseObject(worksheets)
@@ -1107,13 +1250,15 @@ tryagain:
             groupFilters.Visible = True
             btnSearch.Location = New Point(72, 296)
             statusLabel.Text = "Currently fetching data from authorized distributors... ノ( ゜-゜ノ)"
-            disableControls()
-            populateCategories()
-            enableControls()
+            If cbCategories.Items.Count = 0 Then
+                disableControls()
+                populateCategories()
+            End If
             prTable.Columns.Add("MPN", GetType(String))
             prTable.Columns.Add("Short Description", GetType(String))
             prTable.Columns.Add("Manufacturer", GetType(String))
             prTable.Columns.Add("Distributor", GetType(String))
+            prTable.Columns.Add("MOQ", GetType(String))
             prTable.Columns.Add("Prices", GetType(String))
             prTable.Columns.Add("Product Page", GetType(String))
             prTable.Columns.Add("Quantity", GetType(Integer))
@@ -1122,6 +1267,7 @@ tryagain:
             buildPRdgv()
         ElseIf cbSources.SelectedItem = "Shopee" Then
             groupFilters.Visible = False
+            btnSearch.Enabled = True
             btnSearch.Location = New Point(72, 144)
         End If
     End Sub

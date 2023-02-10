@@ -47,6 +47,7 @@ Partial Class OctoPart_API
         Me.shopeeNavPanel = New System.Windows.Forms.GroupBox()
         Me.btnPrevious = New System.Windows.Forms.Button()
         Me.btnNext = New System.Windows.Forms.Button()
+        Me.labelPRStat = New System.Windows.Forms.Label()
         CType(Me.dgvOctopartResults, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.dgvBuildPR, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.groupFilters.SuspendLayout()
@@ -74,6 +75,8 @@ Partial Class OctoPart_API
         '
         'dgvBuildPR
         '
+        Me.dgvBuildPR.AllowUserToAddRows = False
+        Me.dgvBuildPR.AllowUserToDeleteRows = False
         Me.dgvBuildPR.AllowUserToResizeColumns = False
         Me.dgvBuildPR.AllowUserToResizeRows = False
         Me.dgvBuildPR.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
@@ -215,20 +218,18 @@ Partial Class OctoPart_API
         '
         'btnGetTotal
         '
-        Me.btnGetTotal.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left), System.Windows.Forms.AnchorStyles)
-        Me.btnGetTotal.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.btnGetTotal.Location = New System.Drawing.Point(312, 694)
-        Me.btnGetTotal.Name = "btnGetTotal"
-        Me.btnGetTotal.Size = New System.Drawing.Size(336, 32)
-        Me.btnGetTotal.TabIndex = 20
-        Me.btnGetTotal.Text = "Get Total"
-        Me.btnGetTotal.UseVisualStyleBackColor = True
+        Me.ToolStripProgressBar1.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right
+        Me.ToolStripProgressBar1.Name = "ToolStripProgressBar1"
+        Me.ToolStripProgressBar1.RightToLeft = System.Windows.Forms.RightToLeft.Yes
+        Me.ToolStripProgressBar1.Size = New System.Drawing.Size(100, 16)
+        Me.ToolStripProgressBar1.Visible = False
         '
         'btnExportPR
         '
-        Me.btnExportPR.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btnExportPR.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btnExportPR.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.btnExportPR.Location = New System.Drawing.Point(660, 694)
+        Me.btnExportPR.Location = New System.Drawing.Point(496, 694)
         Me.btnExportPR.Name = "btnExportPR"
         Me.btnExportPR.Size = New System.Drawing.Size(336, 32)
         Me.btnExportPR.TabIndex = 21
@@ -310,6 +311,16 @@ Partial Class OctoPart_API
         Me.btnNext.TabIndex = 28
         Me.btnNext.Text = ">"
         Me.btnNext.UseVisualStyleBackColor = True
+        'labelPRStat
+        '
+        Me.labelPRStat.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.labelPRStat.AutoSize = True
+        Me.labelPRStat.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.labelPRStat.Location = New System.Drawing.Point(363, 426)
+        Me.labelPRStat.Name = "labelPRStat"
+        Me.labelPRStat.Size = New System.Drawing.Size(0, 16)
+        Me.labelPRStat.TabIndex = 24
+        Me.labelPRStat.TextAlign = System.Drawing.ContentAlignment.TopRight
         '
         'OctoPart_API
         '
@@ -317,10 +328,10 @@ Partial Class OctoPart_API
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(1054, 751)
         Me.Controls.Add(Me.shopeeNavPanel)
+        Me.Controls.Add(Me.labelPRStat)
         Me.Controls.Add(Me.labelSource)
         Me.Controls.Add(Me.cbSources)
         Me.Controls.Add(Me.btnExportPR)
-        Me.Controls.Add(Me.btnGetTotal)
         Me.Controls.Add(Me.StatusStrip1)
         Me.Controls.Add(Me.btnSearch)
         Me.Controls.Add(Me.groupFilters)
@@ -359,7 +370,6 @@ Partial Class OctoPart_API
     Friend WithEvents btnSearch As Button
     Friend WithEvents StatusStrip1 As StatusStrip
     Friend WithEvents statusLabel As ToolStripStatusLabel
-    Friend WithEvents btnGetTotal As Button
     Friend WithEvents btnExportPR As Button
     Friend WithEvents dlgSaveFile As SaveFileDialog
     Friend WithEvents ToolStripProgressBar1 As ToolStripProgressBar
@@ -370,4 +380,5 @@ Partial Class OctoPart_API
     Friend WithEvents shopeeNavPanel As GroupBox
     Friend WithEvents btnNext As Button
     Friend WithEvents btnPrevious As Button
+    Friend WithEvents labelPRStat As Label
 End Class
