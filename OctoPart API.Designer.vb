@@ -83,9 +83,9 @@ Partial Class OctoPart_API
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.dgvBuildPR.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells
         Me.dgvBuildPR.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize
-        Me.dgvBuildPR.Location = New System.Drawing.Point(280, 493)
+        Me.dgvBuildPR.Location = New System.Drawing.Point(280, 456)
         Me.dgvBuildPR.Name = "dgvBuildPR"
-        Me.dgvBuildPR.Size = New System.Drawing.Size(756, 196)
+        Me.dgvBuildPR.Size = New System.Drawing.Size(756, 233)
         Me.dgvBuildPR.TabIndex = 1
         '
         'labelOctopartResults
