@@ -1,9 +1,9 @@
-﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()> _
+﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Class OctoPart_API
     Inherits System.Windows.Forms.Form
 
     'Form overrides dispose to clean up the component list.
-    <System.Diagnostics.DebuggerNonUserCode()> _
+    <System.Diagnostics.DebuggerNonUserCode()>
     Protected Overrides Sub Dispose(ByVal disposing As Boolean)
         Try
             If disposing AndAlso components IsNot Nothing Then
@@ -20,7 +20,7 @@ Partial Class OctoPart_API
     'NOTE: The following procedure is required by the Windows Form Designer
     'It can be modified using the Windows Form Designer.  
     'Do not modify it using the code editor.
-    <System.Diagnostics.DebuggerStepThrough()> _
+    <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Me.dgvOctopartResults = New System.Windows.Forms.DataGridView()
         Me.dgvBuildPR = New System.Windows.Forms.DataGridView()
@@ -47,11 +47,6 @@ Partial Class OctoPart_API
         Me.btnNext = New System.Windows.Forms.Button()
         Me.btnPrevious = New System.Windows.Forms.Button()
         Me.labelPRStat = New System.Windows.Forms.Label()
-        Me.Button1 = New System.Windows.Forms.Button()
-        Me.Button2 = New System.Windows.Forms.Button()
-        Me.Button3 = New System.Windows.Forms.Button()
-        Me.pageNumber = New System.Windows.Forms.Label()
-        Me.Label1 = New System.Windows.Forms.Label()
         CType(Me.dgvOctopartResults, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.dgvBuildPR, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.groupFilters.SuspendLayout()
@@ -319,61 +314,11 @@ Partial Class OctoPart_API
         Me.labelPRStat.TabIndex = 24
         Me.labelPRStat.TextAlign = System.Drawing.ContentAlignment.TopRight
         '
-        'Button1
-        '
-        Me.Button1.Location = New System.Drawing.Point(60, 347)
-        Me.Button1.Name = "Button1"
-        Me.Button1.Size = New System.Drawing.Size(117, 67)
-        Me.Button1.TabIndex = 28
-        Me.Button1.Text = "Hello World"
-        Me.Button1.UseVisualStyleBackColor = True
-        '
-        'Button2
-        '
-        Me.Button2.Location = New System.Drawing.Point(24, 423)
-        Me.Button2.Name = "Button2"
-        Me.Button2.Size = New System.Drawing.Size(75, 23)
-        Me.Button2.TabIndex = 29
-        Me.Button2.Text = "Previous"
-        Me.Button2.UseVisualStyleBackColor = True
-        '
-        'Button3
-        '
-        Me.Button3.Location = New System.Drawing.Point(151, 423)
-        Me.Button3.Name = "Button3"
-        Me.Button3.Size = New System.Drawing.Size(75, 23)
-        Me.Button3.TabIndex = 29
-        Me.Button3.Text = "Next"
-        Me.Button3.UseVisualStyleBackColor = True
-        '
-        'pageNumber
-        '
-        Me.pageNumber.AutoSize = True
-        Me.pageNumber.Location = New System.Drawing.Point(105, 428)
-        Me.pageNumber.Name = "pageNumber"
-        Me.pageNumber.Size = New System.Drawing.Size(39, 13)
-        Me.pageNumber.TabIndex = 30
-        Me.pageNumber.Text = "Label1"
-        '
-        'Label1
-        '
-        Me.Label1.AutoSize = True
-        Me.Label1.Location = New System.Drawing.Point(95, 449)
-        Me.Label1.Name = "Label1"
-        Me.Label1.Size = New System.Drawing.Size(58, 13)
-        Me.Label1.TabIndex = 30
-        Me.Label1.Text = "totalPage2"
-        '
         'OctoPart_API
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(1054, 751)
-        Me.Controls.Add(Me.Label1)
-        Me.Controls.Add(Me.pageNumber)
-        Me.Controls.Add(Me.Button3)
-        Me.Controls.Add(Me.Button2)
-        Me.Controls.Add(Me.Button1)
         Me.Controls.Add(Me.shopeeNavPanel)
         Me.Controls.Add(Me.labelPRStat)
         Me.Controls.Add(Me.labelSource)
@@ -428,9 +373,4 @@ Partial Class OctoPart_API
     Friend WithEvents btnNext As Button
     Friend WithEvents btnPrevious As Button
     Friend WithEvents labelPRStat As Label
-    Friend WithEvents Button1 As Button
-    Friend WithEvents Button2 As Button
-    Friend WithEvents Button3 As Button
-    Friend WithEvents pageNumber As Label
-    Friend WithEvents Label1 As Label
 End Class
