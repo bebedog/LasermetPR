@@ -22,6 +22,7 @@ Public Class OctoPart_API
     Public totalPage As Integer
     Public currentItemToSearch As String
     Public myBitmapList As New List(Of Object)
+    Public myChromeDriver As ChromeDriver
     Dim cellValid As Boolean
     Public Async Function DownloadImage(URLandID As Object) As Task(Of Object)
         If URLandID(0) = "" Then
@@ -49,8 +50,7 @@ Public Class OctoPart_API
             End While
         End If
     End Function
-
-    Private Async Function SearchShopee(ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel, Optional itemToSearch As String = Nothing) As Task(Of DataTable)
+    Private Async Function SearchShopee(ByVal datagridviewName As DataGridView, ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel, Optional itemToSearch As String = Nothing, Optional method As String = Nothing) As Task(Of DataTable)
         datagridviewName.Columns.Clear()
         progressBar.Value = 0
         progressBar.Visible = True
@@ -63,8 +63,6 @@ Public Class OctoPart_API
         resultsTable.Columns.Add("Prices")
         resultsTable.Columns.Add("Image URL")
         Dim encodedItemString As String = ""
-        'code to encode string to utf
-
         Dim retries As Integer = 0
 
 tryagain:
@@ -73,7 +71,7 @@ tryagain:
             'Use Selenium to browse using chrome.
             'set options to make chrome headless.
             Dim options As New ChromeOptions()
-            Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript", "headless"}
+            Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript"}
             options.AddArguments(optionParamaters)
 
             'declare a chromedriver service
@@ -83,6 +81,9 @@ tryagain:
             Dim driver As ChromeDriver = New ChromeDriver(service, options)
             'driver.Manage().Window.Maximize()
             'Go to the search result url
+
+
+            '===================OPEN CHROME & CHECK TO SEE IF IT HAS RESULTS===================
             Try
                 lblstatus.Text = "Waiting for a response from Shopee.."
                 'set driver to wait for 10 seconds for the page to load.
@@ -178,8 +179,11 @@ tryagain:
                     Exit Function
                 End If
             End Try
-            'START OF PARSE
+            '===================OPEN CHROME & CHECK TO SEE IF IT HAS RESULTS===================
+
+
             'Load it as an HTML Document.
+            '===================SCRAPE WEBPAGE===================
             Try
                 Dim htmlDocument As New HtmlDocument
                 htmlDocument.LoadHtml(html)
@@ -324,23 +328,299 @@ tryagain:
             MessageBox.Show("Max retries time out error occured! Program is restarting.", "Oops, something went wrong!", MessageBoxButtons.OK, MessageBoxIcon.Error)
             Application.Restart()
             Exit Function
-        End If
-    End Function
-    Public Sub setAndEnableShopeePageController()
-        If currentPage = 1 Then
-            btnPrevious.Enabled = False
-            btnNext.Enabled = True
-        ElseIf currentPage = totalPage Then
-            btnPrevious.Enabled = True
-            btnNext.Enabled = False
-        Else
-            btnPrevious.Enabled = True
-            btnNext.Enabled = True
+            '===================SCRAPE WEBPAGE===================
+
         End If
 
+    End Function
+    Public Function createChromeDriver() As ChromeDriver
+        Dim options As New ChromeOptions()
+        Dim optionParamaters As String() = {"incognito", "nogpu", "disable-gpu", "no-sandbox", "window-size=1280,1280", "enable-javascript"}
+        options.AddArguments(optionParamaters)
+        'declare a chromedriver service
+        Dim service = ChromeDriverService.CreateDefaultService()
+        service.HideCommandPromptWindow = True
+        'attach the option to the new driver manager.
+        Dim driver As New ChromeDriver(service, options)
+        Return driver
+    End Function
+    Private Async Function SearchShopeeVersion2(ByVal progressBar As ToolStripProgressBar, ByVal lblstatus As ToolStripStatusLabel,
+                                                 driver As ChromeDriver, Optional itemTosearch As String = Nothing, Optional method As String = Nothing) As Task(Of String)
+
+        Dim retries As Integer = 0
+        'Use Selenium to browse using chrome.
+        'set options to make chrome headless.
+
+        Dim html As String = ""
+        Dim encodedItemString As String = ""
+        Try
+            Select Case method
+                Case Nothing
+                    'if no method specified. Search as normal.
+                    For Each character In itemTosearch
+                        If character = " " Then
+                            encodedItemString += "%20"
+                        Else
+                            encodedItemString += character
+                        End If
+                    Next
+                    lblstatus.Text = $"Searching for '{itemTosearch}' on Shopee.."
+                    Dim wait As New WebDriverWait(driver, TimeSpan.FromSeconds(5))
+                    wait.IgnoreExceptionTypes(GetType(NoSuchElementException))
+                    driver.Navigate().GoToUrl($"https://shopee.ph/search?keyword={encodedItemString}")
+                    'wait until page results and page controller are loaded.
+                    wait.Until(Function()
+                                   Try
+
+                                       If driver.FindElement(By.ClassName("shopee-search-item-result__items")).Displayed AndAlso driver.FindElement(By.ClassName("shopee-mini-page-controller__state")).Displayed Then
+                                           'check all datacards if they contain information
+                                           Return True
+                                       Else
+                                           Return False
+                                           'rerun the function.
+                                       End If
+                                   Catch ex As Exception
+                                       Dim exType As Type = ex.GetType()
+                                       If (
+                                           exType = GetType(NoSuchElementException) Or exType = GetType(InvalidOperationException) Or
+                                           exType = GetType(ElementNotVisibleException) Or exType = GetType(WebDriverException)) Then
+                                           Return False
+                                           'by returning false, wait will still rerun the function.
+                                       Else
+                                           Throw
+                                       End If
+                                   End Try
+                               End Function)
+                    'wait for 2 seconds.
+                    Await Task.Delay(2000)
+                    'once it is loaded, scroll to the bottom of the page.
+                    While True
+                        Dim currentYPosition = driver.ExecuteScript("return window.pageYOffset;")
+                        'Scroll by a bit.
+                        driver.ExecuteScript("window.scrollTo(0, window.scrollY + 500)")
+
+                        'Wait for stuff to load.
+                        Await Task.Delay(300)
+
+                        'Calculate new scroll height and compare it with last height.
+                        Dim newHeight = driver.ExecuteScript("return window.pageYOffset;")
+                        If newHeight = currentYPosition Then 'This means the browser reached the max height.
+                            Console.WriteLine("Reached bottom of the page.")
+                            lblstatus.Text = "Checking if data rendered from Shopee is complete."
+
+                            'there are still some elements that didn't finish loading.
+                            'scroll back to top and re-run the program.
+                            'check all cards here.
+                            html = driver.PageSource
+                            Dim checkHTMLDocument As New HtmlDocument
+                            checkHTMLDocument.LoadHtml(html)
+                            '_7DTxhh +ZCtwF are classes without images.
+                            Dim defaultCardImage = checkHTMLDocument.DocumentNode.SelectNodes("//img[(@class='_7DTxhh +ZCtwF')]")
+                            Dim htmlCheck As New HtmlDocument
+                            htmlCheck.LoadHtml(driver.PageSource)
+                            Dim shopeeCards = htmlCheck.DocumentNode.SelectSingleNode("//div[(@class= 'row shopee-search-item-result__items')]")
+                            For Each card As HtmlNode In shopeeCards.ChildNodes
+                                If card.SelectSingleNode(".//div[(@class='ie3A+n bM+7UW Cve6sh')]") Is Nothing Or
+                                   card.SelectSingleNode(".//a[(@data-sqe='link')]") Is Nothing Or
+                                   card.SelectSingleNode(".//img[(@class='_7DTxhh vc8g9F')]") Is Nothing Or
+                                   card.SelectSingleNode(".//div[(@class='zGGwiV')]") Is Nothing Or
+                                   card.SelectSingleNode(".//div[(@class='vioxXd rVLWG6')]") Is Nothing Then
+                                    lblstatus.Text = "Some elements didn't load. (ㆆ_ㆆ) Retrying!"
+                                    driver.ExecuteScript("window.scrollTo(0,0);")
+                                    Exit For
+                                Else
+
+                                End If
+                            Next
+                            Exit While
+                        End If
+                    End While
+                    lblstatus.Text = "Shopee page validated. Now parsing data.."
+                    'we are now ready to parse the data.
+                    Return html
+                Case "Next"
+                    Dim wait As New WebDriverWait(driver, TimeSpan.FromSeconds(5))
+                    wait.IgnoreExceptionTypes(GetType(NoSuchElementException))
+                    driver.FindElement(By.ClassName("shopee-mini-page-controller__next-btn")).Click()
+                    'wait until page results and page controller are loaded.
+                    wait.Until(Function()
+                                   Try
+
+                                       If driver.FindElement(By.ClassName("shopee-search-item-result__items")).Displayed AndAlso driver.FindElement(By.ClassName("shopee-mini-page-controller__state")).Displayed Then
+                                           'check all datacards if they contain information
+                                           Return True
+                                       Else
+                                           Return False
+                                           'rerun the function.
+                                       End If
+                                   Catch ex As Exception
+                                       Dim exType As Type = ex.GetType()
+                                       If (
+                                           exType = GetType(NoSuchElementException) Or exType = GetType(InvalidOperationException) Or
+                                           exType = GetType(ElementNotVisibleException) Or exType = GetType(WebDriverException)) Then
+                                           Return False
+                                           'by returning false, wait will still rerun the function.
+                                       Else
+                                           Throw
+                                       End If
+                                   End Try
+                               End Function)
+                    'wait for 2 seconds.
+                    Await Task.Delay(2000)
+                    'once it is loaded, scroll to the bottom of the page.
+                    While True
+                        Dim currentYPosition = driver.ExecuteScript("return window.pageYOffset;")
+                        'Scroll by a bit.
+                        driver.ExecuteScript("window.scrollTo(0, window.scrollY + 500)")
+
+                        'Wait for stuff to load.
+                        Await Task.Delay(300)
+
+                        'Calculate new scroll height and compare it with last height.
+                        Dim newHeight = driver.ExecuteScript("return window.pageYOffset;")
+                        If newHeight = currentYPosition Then 'This means the browser reached the max height.
+                            Console.WriteLine("Reached bottom of the page.")
+                            lblstatus.Text = "Checking if data rendered from Shopee is complete."
+
+                            'there are still some elements that didn't finish loading.
+                            'scroll back to top and re-run the program.
+                            'check all cards here.
+                            html = driver.PageSource
+                            Dim checkHTMLDocument As New HtmlDocument
+                            checkHTMLDocument.LoadHtml(html)
+                            '_7DTxhh +ZCtwF are classes without images.
+                            Dim defaultCardImage = checkHTMLDocument.DocumentNode.SelectNodes("//img[(@class='_7DTxhh +ZCtwF')]")
+                            Dim htmlCheck As New HtmlDocument
+                            htmlCheck.LoadHtml(driver.PageSource)
+                            Dim shopeeCards = htmlCheck.DocumentNode.SelectSingleNode("//div[(@class= 'row shopee-search-item-result__items')]")
+                            For Each card As HtmlNode In shopeeCards.ChildNodes
+                                If card.SelectSingleNode(".//div[(@class='ie3A+n bM+7UW Cve6sh')]") Is Nothing Or
+                                   card.SelectSingleNode(".//a[(@data-sqe='link')]") Is Nothing Or
+                                   card.SelectSingleNode(".//img[(@class='_7DTxhh vc8g9F')]") Is Nothing Or
+                                   card.SelectSingleNode(".//div[(@class='zGGwiV')]") Is Nothing Or
+                                   card.SelectSingleNode(".//div[(@class='vioxXd rVLWG6')]") Is Nothing Then
+                                    lblstatus.Text = "Some elements didn't load. (ㆆ_ㆆ) Retrying!"
+                                    driver.ExecuteScript("window.scrollTo(0,0);")
+                                    Exit For
+                                Else
+
+                                End If
+                            Next
+                            Exit While
+                        End If
+                    End While
+                    lblstatus.Text = "Shopee page validated. Now parsing data.."
+                    'we are now ready to parse the data.
+                    Return html
+                Case "Prev"
+
+            End Select
+        Catch ex As Exception
+            MessageBox.Show(ex.Message, "Oops, something went wrong!", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
+    End Function
+    Public Async Function ParseShopeeData(ByVal myHTML As String, dgv As DataGridView, lblStatus As ToolStripStatusLabel, progressBar As ToolStripProgressBar) As Task(Of DataTable)
+        dgvOctopartResults.Columns.Clear()
+        Dim resultsTable As New DataTable
+        resultsTable.Columns.Add("Item Name")
+        resultsTable.Columns.Add("Image", GetType(Image))
+        resultsTable.Columns.Add("Location")
+        resultsTable.Columns.Add("Product Page")
+        resultsTable.Columns.Add("Prices")
+        resultsTable.Columns.Add("Image URL")
+        Dim htmlDoc As New HtmlDocument
+        htmlDoc.LoadHtml(myHTML)
+        Dim htmlBody As HtmlNode = htmlDoc.DocumentNode.SelectSingleNode("//body")
+        Dim searchResultsNode As HtmlNode = htmlBody.SelectSingleNode(".//div[(@class='row shopee-search-item-result__items')]")
+        Dim miniPageController As HtmlNode = htmlBody.SelectSingleNode(".//div[@class='shopee-mini-page-controller__state']")
+        currentPage = miniPageController.SelectSingleNode(".//span[@class = 'shopee-mini-page-controller__current']").InnerText
+        totalPage = miniPageController.SelectSingleNode(".//span[@class = 'shopee-mini-page-controller__total']").InnerText
+
+        progressBar.Maximum = searchResultsNode.ChildNodes.Count
+        Dim listOfImageUrl As New List(Of Object)
+        For Each items As HtmlNode In searchResultsNode.SelectNodes(".//div[(@class='col-xs-2-4 shopee-search-item-result__item')]")
+            progressBar.Increment(1)
+            lblStatus.Text = $"Parsing results.. ({progressBar.Value}/{progressBar.Maximum})"
+            Dim itemName As String = items.SelectSingleNode(".//div[(@class='ie3A+n bM+7UW Cve6sh')]").InnerText
+            Dim location As String = items.SelectSingleNode(".//div[(@class='zGGwiV')]").InnerText
+            Dim url As String = items.SelectSingleNode(".//a[(@data-sqe='link')]").Attributes("href").Value
+            Dim imageUrl As String = items.SelectSingleNode(".//img[(@class='_7DTxhh vc8g9F')]").Attributes("src").Value
+            Dim price As String = ""
+            'Price varies, sometimes shopee displays the original price, or sometimes it displays a price range
+            'And sometimes it also displays the old price, and the new price beside it. So we'll capture the NODE
+            'of the whole price section instead and count the number of children inside it.
+            Dim priceNode As HtmlNode = items.SelectSingleNode(".//div[(@class='hpDKMN')]")
+            priceNode = items.SelectSingleNode(".//div[(@class='hpDKMN')]")
+            'this is either a Price Range or a Single Price
+            Dim currentPriceClass As HtmlNode
+            currentPriceClass = priceNode.SelectSingleNode(".//div[(@class='vioxXd rVLWG6')]")
+            For Each span As HtmlNode In currentPriceClass.ChildNodes
+                If span.Name = "span" Then
+                    price += span.InnerText
+                Else
+                    price += " - "
+                End If
+            Next
+            Dim newRow = resultsTable.NewRow()
+            newRow.Item("Item Name") = itemName
+            'newRow.Item("Image") = tImage
+            newRow.Item("Location") = location
+            newRow.Item("Product Page") = "https://www.shopee.ph" + url
+            newRow.Item("Prices") = price
+            listOfImageUrl.Add({imageUrl, itemName})
+            resultsTable.Rows.Add(newRow)
+        Next
+        Console.WriteLine("Starting parallel download:")
+
+        Dim resultCollection As New Concurrent.ConcurrentBag(Of Task)
+        Parallel.ForEach(listOfImageUrl, Sub(currentURL)
+                                             Dim myByte = DownloadImage(currentURL)
+                                             resultCollection.Add(myByte)
+                                         End Sub)
+        Await Task.WhenAll(resultCollection)
+        Console.WriteLine(resultCollection)
+
+        myBitmapList.Clear()
+        For Each myTask As Task(Of Object) In resultCollection
+            Dim myByte As Byte() = myTask.Result(0)
+            'currentObject(0) is the container for the bytes
+            'currentObject(1) is the container for the item name
+            If myByte IsNot Nothing Then
+                Using myStream As New MemoryStream(myByte.ToArray)
+                    myBitmapList.Add({New Bitmap(Bitmap.FromStream(myStream), 120, 120), myTask.Result(1)})
+                End Using
+            Else
+                myBitmapList.Add({Nothing, myTask.Result(1)})
+            End If
+        Next
+        For Each rows As DataRow In resultsTable.Rows
+            For Each items In myBitmapList
+                If rows.Item("Item Name") = items(1) Then
+                    rows.Item("Image") = items(0)
+                End If
+            Next
+        Next
+        progressBar.Value = progressBar.Maximum
+        progressBar.Visible = False
+        lblStatus.Text = "Fetch complete!"
+        Return resultsTable
+    End Function
+    Public Sub setAndEnableShopeePageController()
+        If myChromeDriver.FindElement(By.ClassName("shopee-mini-page-controller__prev-btn")).Enabled Then
+            btnPrevious.Enabled = True
+        Else
+            btnPrevious.Enabled = False
+        End If
+
+        If myChromeDriver.FindElement(By.ClassName("shopee-mini-page-controller__next-btn")).Enabled Then
+            btnNext.Enabled = True
+        Else
+            btnNext.Enabled = False
+        End If
         lblCurrPage.Text = currentPage
-        lblNumberOfPages.Text = "/" + totalPage.ToString
-        shopeeNavPanel.Show()
+            lblNumberOfPages.Text = "/" + totalPage.ToString
+            shopeeNavPanel.Show()
     End Sub
     Private Sub disableControls()
         For Each c As Control In Me.Controls
@@ -358,6 +638,7 @@ tryagain:
         Next
     End Sub
     Private Sub OctoPart_API_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        myChromeDriver = createChromeDriver()
         Console.WriteLine(Application.StartupPath)
         cbSources.Items.Add("Shopee")
         cbSources.Items.Add("Octopart")
@@ -721,49 +1002,72 @@ tryagain:
     Private Sub cbCategories_SelectedIndexChanged_1(sender As Object, e As EventArgs) Handles cbCategories.SelectedIndexChanged
         populateSubcategories(cbCategories.Text)
     End Sub
-
     Private Async Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
         selectedSource = cbSources.Text
         If selectedSource = "Octopart" Then
             Await searchOcto(tbKeyword.Text, cbCategories.Text, cbSubcategories.Text)
         ElseIf selectedSource = "Shopee" Then
             disableControls()
-            Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel, tbKeyword.Text)
-            If resultsDataTable Is Nothing Then
-                enableControls()
-                tbKeyword.Clear()
-                tbKeyword.Select()
-                Exit Sub
-                'do nothing if sub is empty.
-            Else
-                dgvOctopartResults.DataSource = resultsDataTable
-                dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
-                dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
-                dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
-                Dim btn As New DataGridViewButtonColumn()
-                dgvOctopartResults.Columns.Add(btn)
-                btn.HeaderText = "Item Links"
-                btn.Text = "View on browser"
-                btn.Name = "btnLink"
-                btn.UseColumnTextForButtonValue = True
+            Dim html = Await SearchShopeeVersion2(ToolStripProgressBar1, statusLabel, myChromeDriver, tbKeyword.Text)
+            dgvOctopartResults.DataSource = Await ParseShopeeData(html, dgvOctopartResults, statusLabel, ToolStripProgressBar1)
+            dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+            dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+            dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+            Dim btn As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btn)
+            btn.HeaderText = "Item Links"
+            btn.Text = "View on browser"
+            btn.Name = "btnLink"
+            btn.UseColumnTextForButtonValue = True
 
-                Dim btnAddtoPR As New DataGridViewButtonColumn()
-                dgvOctopartResults.Columns.Add(btnAddtoPR)
-                btnAddtoPR.HeaderText = "Add to PR"
-                btnAddtoPR.Text = "Add to Purchase Request"
-                btnAddtoPR.Name = "btnAddToPR"
-                btnAddtoPR.UseColumnTextForButtonValue = True
-                'hide product page
-                dgvOctopartResults.Columns("Product Page").Visible = False
-                dgvOctopartResults.Columns("Image URL").Visible = False
-                dgvOctopartResults.AllowUserToAddRows = False
-                enableControls()
-            End If
+            Dim btnAddtoPR As New DataGridViewButtonColumn()
+            dgvOctopartResults.Columns.Add(btnAddtoPR)
+            btnAddtoPR.HeaderText = "Add to PR"
+            btnAddtoPR.Text = "Add to Purchase Request"
+            btnAddtoPR.Name = "btnAddToPR"
+            btnAddtoPR.UseColumnTextForButtonValue = True
+            'hide product page
+            dgvOctopartResults.Columns("Product Page").Visible = False
+            dgvOctopartResults.Columns("Image URL").Visible = False
+            dgvOctopartResults.AllowUserToAddRows = False
+            enableControls()
+            setAndEnableShopeePageController()
+            'disableControls()
+            'Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel, tbKeyword.Text)
+            'If resultsDataTable Is Nothing Then
+            '    enableControls()
+            '    tbKeyword.Clear()
+            '    tbKeyword.Select()
+            '    Exit Sub
+            '    'do nothing if sub is empty.
+            'Else
+            '    dgvOctopartResults.DataSource = resultsDataTable
+            '    dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+            '    dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+            '    dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+            '    Dim btn As New DataGridViewButtonColumn()
+            '    dgvOctopartResults.Columns.Add(btn)
+            '    btn.HeaderText = "Item Links"
+            '    btn.Text = "View on browser"
+            '    btn.Name = "btnLink"
+            '    btn.UseColumnTextForButtonValue = True
+
+            '    Dim btnAddtoPR As New DataGridViewButtonColumn()
+            '    dgvOctopartResults.Columns.Add(btnAddtoPR)
+            '    btnAddtoPR.HeaderText = "Add to PR"
+            '    btnAddtoPR.Text = "Add to Purchase Request"
+            '    btnAddtoPR.Name = "btnAddToPR"
+            '    btnAddtoPR.UseColumnTextForButtonValue = True
+            '    'hide product page
+            '    dgvOctopartResults.Columns("Product Page").Visible = False
+            '    dgvOctopartResults.Columns("Image URL").Visible = False
+            '    dgvOctopartResults.AllowUserToAddRows = False
+            '    enableControls()
+            'End If
         Else
             MessageBox.Show("Please select a source!!!!!")
         End If
     End Sub
-
     Private Sub dgvOctopartResults_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvOctopartResults.CellContentClick
         Dim url As String
         Dim sendergrid = DirectCast(sender, DataGridView)
@@ -790,7 +1094,6 @@ tryagain:
             End If
         End If
     End Sub
-
     Private Sub populateSellersTable(ByVal MPN As String, ByVal shortDesc As String, ByVal manufacturer As String, ByVal results As NexarAPIResponse, ByVal dgv As DataGridView)
 
         dgv.Columns.Clear()
@@ -907,13 +1210,11 @@ tryagain:
         viewSellers.ToolStripStatusLabel1.Text = "(ノ ゜-゜)ノ"
 
     End Sub
-
     Private Sub btnExportPR_Click(sender As Object, e As EventArgs) Handles btnExportPR.Click
 
         exportPR()
 
     End Sub
-
     Private Sub exportPR()
         Dim prTableforExcel As New DataTable
 
@@ -967,7 +1268,6 @@ tryagain:
             addtoExcel(prTableforExcel, dlgSaveFile.FileName)
         End If
     End Sub
-
     Private Sub exportPR_keyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles Me.KeyDown
         If btnExportPR.Enabled = True Then
             If e.Control AndAlso (e.KeyCode = 83) Then
@@ -975,7 +1275,6 @@ tryagain:
             End If
         End If
     End Sub
-
     Public Function SplitInParts(s As String, partLength As Integer) As IEnumerable(Of String)
         If String.IsNullOrEmpty(s) Then
             Throw New ArgumentNullException("String cannot be null or empty.")
@@ -985,7 +1284,6 @@ tryagain:
         End If
         Return Enumerable.Range(0, Math.Ceiling(s.Length / partLength)).Select(Function(i) s.Substring(i * partLength, If(s.Length - (i * partLength) >= partLength, partLength, Math.Abs(s.Length - (i * partLength)))))
     End Function
-
     Private Sub dgvBuildPR_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvBuildPR.CellContentClick
         Dim sendergrid = DirectCast(sender, DataGridView)
         If TypeOf sendergrid.Columns(e.ColumnIndex) Is DataGridViewButtonColumn Then
@@ -1028,7 +1326,6 @@ tryagain:
             End If
         End If
     End Sub
-
     Private Sub dgvBuildPR_CellContentChanged(sender As Object, e As DataGridViewCellEventArgs) Handles dgvBuildPR.CellValueChanged
 
         Dim totalPrice As Double
@@ -1103,7 +1400,6 @@ tryagain:
         End If
 
     End Sub
-
     Private Sub dgvBuildPR_CellValidating(sender As Object, e As DataGridViewCellValidatingEventArgs) Handles dgvBuildPR.CellValidating
 
         If e.ColumnIndex = 7 Then
@@ -1153,7 +1449,6 @@ tryagain:
         End If
 
     End Sub
-
     Private Sub addtoExcel(ByVal dt As DataTable, ByVal filename As String)
 
         Dim xlApp As New Microsoft.Office.Interop.Excel.Application()
@@ -1274,73 +1569,156 @@ tryagain:
     End Sub
 
     Private Async Sub btnNext_Click(sender As Object, e As EventArgs) Handles btnNext.Click
-        disableControls()
-        Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel)
-        If resultsDataTable Is Nothing Then
-            enableControls()
-            tbKeyword.Clear()
-            tbKeyword.Select()
-            Exit Sub
-            'do nothing if sub is empty.
-        Else
-            dgvOctopartResults.DataSource = resultsDataTable
-            dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
-            dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
-            dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
-            Dim btn As New DataGridViewButtonColumn()
-            dgvOctopartResults.Columns.Add(btn)
-            btn.HeaderText = "Item Links"
-            btn.Text = "View on browser"
-            btn.Name = "btnLink"
-            btn.UseColumnTextForButtonValue = True
+        'disableControls()
+        'Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel)
+        'If resultsDataTable Is Nothing Then
+        '    enableControls()
+        '    tbKeyword.Clear()
+        '    tbKeyword.Select()
+        '    Exit Sub
+        '    'do nothing if sub is empty.
+        'Else
+        '    dgvOctopartResults.DataSource = resultsDataTable
+        '    dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+        '    dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+        '    dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+        '    Dim btn As New DataGridViewButtonColumn()
+        '    dgvOctopartResults.Columns.Add(btn)
+        '    btn.HeaderText = "Item Links"
+        '    btn.Text = "View on browser"
+        '    btn.Name = "btnLink"
+        '    btn.UseColumnTextForButtonValue = True
 
-            Dim btnAddtoPR As New DataGridViewButtonColumn()
-            dgvOctopartResults.Columns.Add(btnAddtoPR)
-            btnAddtoPR.HeaderText = "Add to PR"
-            btnAddtoPR.Text = "Add to Purchase Request"
-            btnAddtoPR.Name = "btnAddToPR"
-            btnAddtoPR.UseColumnTextForButtonValue = True
-            'hide product page
-            dgvOctopartResults.Columns("Product Page").Visible = False
-            dgvOctopartResults.Columns("Image URL").Visible = False
-            dgvOctopartResults.AllowUserToAddRows = False
-            enableControls()
-        End If
+        '    Dim btnAddtoPR As New DataGridViewButtonColumn()
+        '    dgvOctopartResults.Columns.Add(btnAddtoPR)
+        '    btnAddtoPR.HeaderText = "Add to PR"
+        '    btnAddtoPR.Text = "Add to Purchase Request"
+        '    btnAddtoPR.Name = "btnAddToPR"
+        '    btnAddtoPR.UseColumnTextForButtonValue = True
+        '    'hide product page
+        '    dgvOctopartResults.Columns("Product Page").Visible = False
+        '    dgvOctopartResults.Columns("Image URL").Visible = False
+        '    dgvOctopartResults.AllowUserToAddRows = False
+        '    enableControls()
+        'End If
+        disableControls()
+        Dim html = Await SearchShopeeVersion2(ToolStripProgressBar1, statusLabel, myChromeDriver, method:="Next")
+        dgvOctopartResults.DataSource = Await ParseShopeeData(html, dgvOctopartResults, statusLabel, ToolStripProgressBar1)
+        dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+        dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+        dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+        Dim btn As New DataGridViewButtonColumn()
+        dgvOctopartResults.Columns.Add(btn)
+        btn.HeaderText = "Item Links"
+        btn.Text = "View on browser"
+        btn.Name = "btnLink"
+        btn.UseColumnTextForButtonValue = True
+
+        Dim btnAddtoPR As New DataGridViewButtonColumn()
+        dgvOctopartResults.Columns.Add(btnAddtoPR)
+        btnAddtoPR.HeaderText = "Add to PR"
+        btnAddtoPR.Text = "Add to Purchase Request"
+        btnAddtoPR.Name = "btnAddToPR"
+        btnAddtoPR.UseColumnTextForButtonValue = True
+        'hide product page
+        dgvOctopartResults.Columns("Product Page").Visible = False
+        dgvOctopartResults.Columns("Image URL").Visible = False
+        dgvOctopartResults.AllowUserToAddRows = False
+        enableControls()
+        setAndEnableShopeePageController()
     End Sub
 
     Private Async Sub btnPrevious_Click(sender As Object, e As EventArgs) Handles btnPrevious.Click
-        disableControls()
-        currentPage -= 1
-        Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel)
-        If resultsDataTable Is Nothing Then
-            enableControls()
-            tbKeyword.Clear()
-            tbKeyword.Select()
-            Exit Sub
-            'do nothing if sub is empty.
-        Else
-            dgvOctopartResults.DataSource = resultsDataTable
-            dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
-            dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
-            dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
-            Dim btn As New DataGridViewButtonColumn()
-            dgvOctopartResults.Columns.Add(btn)
-            btn.HeaderText = "Item Links"
-            btn.Text = "View on browser"
-            btn.Name = "btnLink"
-            btn.UseColumnTextForButtonValue = True
+        'disableControls()
+        'currentPage -= 1
+        'Dim resultsDataTable = Await SearchShopee(dgvOctopartResults, ToolStripProgressBar1, statusLabel)
+        'If resultsDataTable Is Nothing Then
+        '    enableControls()
+        '    tbKeyword.Clear()
+        '    tbKeyword.Select()
+        '    Exit Sub
+        '    'do nothing if sub is empty.
+        'Else
+        '    dgvOctopartResults.DataSource = resultsDataTable
+        '    dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+        '    dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+        '    dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+        '    Dim btn As New DataGridViewButtonColumn()
+        '    dgvOctopartResults.Columns.Add(btn)
+        '    btn.HeaderText = "Item Links"
+        '    btn.Text = "View on browser"
+        '    btn.Name = "btnLink"
+        '    btn.UseColumnTextForButtonValue = True
 
-            Dim btnAddtoPR As New DataGridViewButtonColumn()
-            dgvOctopartResults.Columns.Add(btnAddtoPR)
-            btnAddtoPR.HeaderText = "Add to PR"
-            btnAddtoPR.Text = "Add to Purchase Request"
-            btnAddtoPR.Name = "btnAddToPR"
-            btnAddtoPR.UseColumnTextForButtonValue = True
-            'hide product page
-            dgvOctopartResults.Columns("Product Page").Visible = False
-            dgvOctopartResults.Columns("Image URL").Visible = False
-            dgvOctopartResults.AllowUserToAddRows = False
-            enableControls()
-        End If
+        '    Dim btnAddtoPR As New DataGridViewButtonColumn()
+        '    dgvOctopartResults.Columns.Add(btnAddtoPR)
+        '    btnAddtoPR.HeaderText = "Add to PR"
+        '    btnAddtoPR.Text = "Add to Purchase Request"
+        '    btnAddtoPR.Name = "btnAddToPR"
+        '    btnAddtoPR.UseColumnTextForButtonValue = True
+        '    'hide product page
+        '    dgvOctopartResults.Columns("Product Page").Visible = False
+        '    dgvOctopartResults.Columns("Image URL").Visible = False
+        '    dgvOctopartResults.AllowUserToAddRows = False
+        '    enableControls()
+        'End If
+        disableControls()
+        Dim html = Await SearchShopeeVersion2(ToolStripProgressBar1, statusLabel, myChromeDriver, method:="Prev")
+        dgvOctopartResults.DataSource = Await ParseShopeeData(html, dgvOctopartResults, statusLabel, ToolStripProgressBar1)
+        dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+        dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+        dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+        Dim btn As New DataGridViewButtonColumn()
+        dgvOctopartResults.Columns.Add(btn)
+        btn.HeaderText = "Item Links"
+        btn.Text = "View on browser"
+        btn.Name = "btnLink"
+        btn.UseColumnTextForButtonValue = True
+
+        Dim btnAddtoPR As New DataGridViewButtonColumn()
+        dgvOctopartResults.Columns.Add(btnAddtoPR)
+        btnAddtoPR.HeaderText = "Add to PR"
+        btnAddtoPR.Text = "Add to Purchase Request"
+        btnAddtoPR.Name = "btnAddToPR"
+        btnAddtoPR.UseColumnTextForButtonValue = True
+        'hide product page
+        dgvOctopartResults.Columns("Product Page").Visible = False
+        dgvOctopartResults.Columns("Image URL").Visible = False
+        dgvOctopartResults.AllowUserToAddRows = False
+        enableControls()
+        setAndEnableShopeePageController()
+    End Sub
+
+    Private Async Sub Button1_Click(sender As Object, e As EventArgs)
+        'Await SearchShopeeVersion2(ToolStripProgressBar1, statusLabel, "hello world")
+        disableControls()
+        Dim html = Await SearchShopeeVersion2(ToolStripProgressBar1, statusLabel, myChromeDriver, "hello world")
+        dgvOctopartResults.DataSource = Await ParseShopeeData(html, dgvOctopartResults, statusLabel, ToolStripProgressBar1)
+        dgvOctopartResults.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
+        dgvOctopartResults.RowsDefaultCellStyle.WrapMode = DataGridViewTriState.True
+        dgvOctopartResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnMode.Fill
+        Dim btn As New DataGridViewButtonColumn()
+        dgvOctopartResults.Columns.Add(btn)
+        btn.HeaderText = "Item Links"
+        btn.Text = "View on browser"
+        btn.Name = "btnLink"
+        btn.UseColumnTextForButtonValue = True
+
+        Dim btnAddtoPR As New DataGridViewButtonColumn()
+        dgvOctopartResults.Columns.Add(btnAddtoPR)
+        btnAddtoPR.HeaderText = "Add to PR"
+        btnAddtoPR.Text = "Add to Purchase Request"
+        btnAddtoPR.Name = "btnAddToPR"
+        btnAddtoPR.UseColumnTextForButtonValue = True
+        'hide product page
+        dgvOctopartResults.Columns("Product Page").Visible = False
+        dgvOctopartResults.Columns("Image URL").Visible = False
+        dgvOctopartResults.AllowUserToAddRows = False
+        enableControls()
+        setAndEnableShopeePageController()
+    End Sub
+
+    Private Sub OctoPart_API_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
+        myChromeDriver.Quit()
     End Sub
 End Class
