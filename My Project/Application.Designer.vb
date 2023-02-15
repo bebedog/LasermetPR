@@ -32,7 +32,7 @@ Namespace My
         
         <Global.System.Diagnostics.DebuggerStepThroughAttribute()>  _
         Protected Overrides Sub OnCreateMainForm()
-            Me.MainForm = Global.LasermetPR.OctoPart_API
+            Me.MainForm = Global.LasermetPR.login
         End Sub
     End Class
 End Namespace
